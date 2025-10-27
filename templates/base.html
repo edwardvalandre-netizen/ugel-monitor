@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>UGEL Lauricocha - Monitoreo</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+    body {
+        margin:  0;
+        padding: 0;
+        background-color: #f8f9fa;
+    }
+
+    .header {
+        background: rgba(34, 36, 37, 0.7); /* Azul UGEL semitransparente */
+        backdrop-filter: blur(8px); /* Efecto vidrioso (solo en navegadores modernos) */
+        -webkit-backdrop-filter: blur(8px);
+        color: white;
+        border-bottom: 1px solid rgba(255,255,255,0.2);
+        position: sticky;
+        top: 0;
+        z-index: 1000;
+    }
+
+    .header-title {
+        font-weight: bold;
+        font-size: 1.3rem;
+        text-shadow: 
+            1px 1px 2px rgba(0, 0, 0, 0.5),
+            0 0 8px rgba(255, 255, 255, 0.4);
+        letter-spacing: 0.5px;
+    }
+
+    .logo {
+        height: 45px;
+        margin-right: 10px;
+        filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+    }
+    .table-responsive {
+        max-height: 400px;
+        overflow-y: auto;
+    }
+</style>
+</head>
+<body>
+    <div class="header d-flex align-items-center w-100 px-4 py-2">
+    <img src="{{ url_for('static', filename='img/logo.png') }}" class="logo" alt="Logo UGEL">
+    <h4 class="header-title ms-3 mb-0">UGEL Lauricocha - SISTEMA DE MONITOREO PEDAGÓGICO </h4>
+    <button id="themeToggle" class="btn btn-sm btn-outline-light ms-auto me-3">
+        🌙 Modo Oscuro
+    </button>
+</div>
+    <div class="container-fluid p-0">
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                {% for msg in messages %}
+                    <div class="alert alert-info alert-dismissible fade show" role="alert">
+                        {{ msg }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+        {% block content %}{% endblock %}
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+// Modo oscuro
+const toggleButton = document.getElementById('themeToggle');
+const body = document.body;
+const isDark = localStorage.getItem('darkMode') === 'true';
+
+if (isDark) {
+    body.classList.add('dark-mode');
+    toggleButton.innerHTML = '☀️ Modo Claro';
+}
+
+toggleButton.addEventListener('click', () => {
+    body.classList.toggle('dark-mode');
+    const isNowDark = body.classList.contains('dark-mode');
+    localStorage.setItem('darkMode', isNowDark);
+    toggleButton.innerHTML = isNowDark ? '☀️ Modo Claro' : '🌙 Modo Oscuro';
+});
+</script>
+
+<style>
+/* Modo oscuro */
+.dark-mode {
+    background-color: #121212;
+    color: #e0e0e0;
+}
+
+.dark-mode .card {
+    background-color: #1e1e1e;
+    border-color: #333;
+    color: #e0e0e0;
+}
+
+.dark-mode .table {
+    color: #e0e0e0;
+}
+
+.dark-mode .table-striped tbody tr:nth-of-type(odd) {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+.dark-mode .table thead th {
+    border-bottom: 2px solid #444;
+}
+
+.dark-mode .btn-outline-primary {
+    color: #6ea8fe;
+    border-color: #6ea8fe;
+}
+
+.dark-mode .btn-outline-primary:hover {
+    background-color: #6ea8fe;
+    color: #000;
+}
+
+.dark-mode .form-control {
+    background-color: #2a2a2a;
+    border-color: #444;
+    color: #e0e0e0;
+}
+
+.dark-mode .form-control::placeholder {
+    color: #aaa;
+}
+
+/* Asegurar que el header se vea bien en modo oscuro */
+.dark-mode .header {
+    background: rgba(0, 30, 60, 0.85); /* Azul más oscuro */
+    color: #fff;
+}
+</style>
+</body>
+</html>

@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block content %}
+<h3>Registrar Nueva Visita</h3>
+<form method="POST">
+    <div class="row">
+        <div class="col-md-6">
+            <div class="mb-3">
+                <label class="form-label">Fecha</label>
+                <input type="date" class="form-control" name="fecha" required>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="mb-3">
+                <label class="form-label">Tipo de Visita</label>
+                <select class="form-select" name="tipo" required>
+                    <option value="">Seleccionar</option>
+                    <option value="Monitoreo pedagógico">Monitoreo pedagógico</option>
+                    <option value="Comisión de servicio">Comisión de servicio</option>
+                    <option value="Asesoría">Asesoría</option>
+                </select>
+            </div>
+        </div>
+    </div>
+    <div class="mb-3">
+        <label class="form-label">Institución Educativa</label>
+        <input type="text" class="form-control" name="institucion" placeholder="Ej: I.E. San Juan Bautista" required>
+    </div>
+    <div class="mb-3">
+        <label class="form-label">Nivel</label>
+        <select class="form-select" name="nivel" required>
+            <option value="">Seleccionar</option>
+            <option value="Inicial">Inicial</option>
+            <option value="Primaria">Primaria</option>
+            <option value="Secundaria">Secundaria</option>
+            <option value="CEBA">CEBA</option>
+        </select>
+    </div>
+    <div class="mb-3">
+        <label class="form-label">Especialista / Responsable</label>
+        <input type="text" class="form-control" name="especialista" placeholder="Ej: Juan Pérez" required>
+    </div>
+    <div class="mb-3">
+        <label class="form-label">Observaciones</label>
+        <textarea class="form-control" name="observaciones" rows="4"></textarea>
+    </div>
+    <button type="submit" class="btn btn-primary">Registrar Visita</button>
+    <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">Cancelar</a>
+</form>
+{% endblock %}

@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h3>📊 Panel de Gestión Pedagógica</h3>
+    <a href="{{ url_for('nueva_visita') }}" class="btn btn-success">+ Nueva Visita</a>
+</div>
+
+<!-- Resumen -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card text-white bg-primary">
+            <div class="card-body">
+                <h5>Total Visitas</h5>
+                <h3>{{ total_visitas }}</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-white bg-success">
+            <div class="card-body">
+                <h5>Este Mes</h5>
+                <h3>{{ visitas_mes }}</h3>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Gráficos -->
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">Visitas por Nivel</div>
+            <div class="card-body">
+                <canvas id="graficoNivel"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">Visitas por Tipo</div>
+            <div class="card-body">
+                <canvas id="graficoTipo"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="d-flex justify-content-end mb-3">
+    <a href="{{ url_for('exportar_excel') }}" class="btn btn-outline-primary">
+        📥 Exportar a Excel
+    </a>
+</div>
+<!-- Tabla de visitas registradas -->
+<h4>📋 Visitas Registradas</h4>
+<div class="table-responsive">
+    <table id="tablaVisitas" class="table table-striped">
+        <thead>
+            <tr>
+                <th>N° Informe</th>
+                <th>Fecha</th>
+                <th>Institución</th>
+                <th>Nivel</th>
+                <th>Especialista</th>
+                <th>Tipo</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% if visitas %}
+                {% for v in visitas %}
+                    <tr>
+                        <td>{{ v[1] }}</td>  <!-- N° Informe -->
+                        <td>{{ v[2] }}</td>  <!-- Fecha -->
+                        <td>{{ v[3] }}</td>  <!-- Institución -->
+                        <td>{{ v[4] }}</td>  <!-- Nivel -->
+                        <td>{{ v[6] }}</td>  <!-- Especialista -->
+                        <td>{{ v[5] }}</td>  <!-- Tipo -->
+                        <td>
+                            <div class="btn-group btn-group-sm" role="group">
+                                <a href="{{ url_for('generar_ppt', visita_id=v[0]) }}" class="btn btn-success">PPT</a>
+                                <a href="{{ url_for('generar_pdf', visita_id=v[0]) }}" class="btn btn-danger">PDF</a>
+                            </div>
+                        </td>
+                    </tr>
+                {% endfor %}
+            {% else %}
+                <tr>
+                    <td colspan="7" class="text-center text-muted">No hay visitas registradas.</td>
+                </tr>
+            {% endif %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    // Datos desde Flask
+    const niveles = {{ niveles | tojson }};
+    const tipos = {{ tipos | tojson }};
+
+    // Gráfico por nivel
+    new Chart(document.getElementById('graficoNivel'), {
+        type: 'bar',
+        data: {
+            labels: Object.keys(niveles),
+            datasets: [{
+                label: 'Número de Visitas',
+                 Object.values(niveles),
+                backgroundColor: '#007bff'
+            }]
+        },
+        options: { responsive: true, plugins: { legend: { display: false } } }
+    });
+
+    // Gráfico por tipo
+    new Chart(document.getElementById('graficoTipo'), {
+        type: 'pie',
+        data: {
+            labels: Object.keys(tipos),
+            datasets: [{
+                data: Object.values(tipos),
+                backgroundColor: ['#ff6384', '#36a2eb', '#ffce56', '#4bc0c0']
+            }]
+        },
+        options: { responsive: true }
+    });
+</script>
+{% endblock %}
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>N° Informe</th>
+            <th>Fecha</th>
+            <th>Institución</th>
+            <th>Nivel</th>
+            <th>Especialista</th>
+            <th>Tipo</th>
+            <th>Acciones</th>
+        </tr>
+    </thead>
+    <tbody>
+     {% if visitas %}
+        {% for v in visitas %}
+        <tr>
+            <td>{{ v[1] }}</td>
+            <td>{{ v[2] }}</td>
+            <td>{{ v[3] }}</td>
+            <td>{{ v[4] }}</td>
+            <td>{{ v[6] }}</td>
+            <td>{{ v[5] }}</td>
+            <td>
+               <div class="btn-group btn-group-sm" role="group">
+                        <a href="{{ url_for('generar_ppt', visita_id=v[0]) }}" class="btn btn-success">PPT</a>
+                        <a href="{{ url_for('generar_pdf', visita_id=v[0]) }}" class="btn btn-danger">PDF</a>
+                    </div>
+                </td>
+            </tr>
+        {% endfor %}
+    
+    {% else %}
+        <tr>
+            <td colspan="7" class="text-center text-muted">No hay visitas registradas.</td>
+        </tr>
+    {% endif %}
+</tbody>
+</table>

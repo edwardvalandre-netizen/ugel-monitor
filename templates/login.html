@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block content %}
+<style>
+    /* Elimina margenes y padding del body */
+    body {
+        margin: 0;
+        padding: 0;
+        overflow-x: hidden;
+    }
+
+    .login-container {
+        background: url("{{ url_for('static', filename='img/fondo.png') }}") no-repeat center center;
+        background-size: cover;
+        background-attachment: fixed; /* Fija la imagen al hacer scroll */
+        min-height: 100vh;
+        width: 100vw;
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        padding: 0;
+        margin: 0;
+        position: relative;
+    }
+
+    .card {
+        backdrop-filter: blur(10px);
+        background: rgba(0, 51, 102, 0.85); /* Azul oscuro UGEL */
+        border-radius: 15px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        max-width: 400px;
+        width: 90%;
+        color: white;
+        border: 1px solid rgba(255,255,255,0.2);
+        padding: 2rem;
+        margin: 1rem;
+        margin-top: -50px;
+    }
+
+    .form-label {
+        color: #e0e0e0;
+    }
+
+    .form-control {
+        background-color: rgba(255,255,255,0.9);
+        border: 1px solid #ccc;
+        color: #333;
+    }
+
+    .btn-primary {
+        background-color: #ff6600;
+        border: none;
+        font-weight: bold;
+        width: 100%;
+    }
+
+    .btn-primary:hover {
+        background-color: #ff8533;
+    }
+</style>
+
+<div class="login-container">
+    <div class="col-md-5">
+        <div class="card">
+            <div class="card-header text-center">
+                <h5>Iniciar Sesión</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <div class="mb-3">
+                        <label for="usuario" class="form-label">Usuario</label>
+                        <input type="text" class="form-control" name="usuario" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="contrasena" class="form-label">Contraseña</label>
+                        <input type="password" class="form-control" name="contrasena" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">Ingresar</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
