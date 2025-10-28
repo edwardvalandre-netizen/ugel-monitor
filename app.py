@@ -1,43 +1,60 @@
-from flask import Flask, render_template, request, redirect, url_for, flash
-import sqlite3
-
-def get_db_connection():
-    conn = sqlite3.connect('database.db')
-    conn.row_factory = sqlite3.Row
-    return conn
+from flask import Flask, render_template, request, redirect, url_for, flash, session
+import os
+import psycopg2
+from psycopg2.extras import RealDictCursor
 from datetime import datetime
 
 app = Flask(__name__)
-app.secret_key = "ugel_lauricocha_2025"  # para mensajes flash
+app.secret_key = "ugel_lauricocha_2025"
+
+# Conexión a PostgreSQL
+def get_db_connection():
+    conn = psycopg2.connect(
+        os.environ['DATABASE_URL'],
+        cursor_factory=RealDictCursor
+    )
+    return conn
 
 # Inicializar base de datos
 def init_db():
     conn = get_db_connection()
-    c = conn.cursor()
-    c.execute('''
+    cur = conn.cursor()
+    # Tabla de usuarios
+    cur.execute('''
+        CREATE TABLE IF NOT EXISTS usuarios (
+            id SERIAL PRIMARY KEY,
+            usuario TEXT UNIQUE NOT NULL,
+            contrasena TEXT NOT NULL,
+            nombre_completo TEXT,
+            rol TEXT NOT NULL CHECK (rol IN ('especialista', 'jefe', 'admin')),
+            creado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    # Tabla de visitas
+    cur.execute('''
         CREATE TABLE IF NOT EXISTS visitas (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id SERIAL PRIMARY KEY,
+            usuario_id INTEGER REFERENCES usuarios(id),
             numero_informe TEXT UNIQUE,
             fecha TEXT,
             institucion TEXT,
             nivel TEXT,
             tipo_visita TEXT,
-            especialista TEXT,
             observaciones TEXT,
             creado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS usuarios (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            usuario TEXT UNIQUE,
-            contrasena TEXT  -- en producción usar hash, pero para prácticas OK
-        )
-    ''')
-    # Usuario de prueba
-    c.execute("INSERT OR IGNORE INTO usuarios (usuario, contrasena) VALUES ('admin', '123456')")
+    # Usuario administrador
+    cur.execute('''
+        INSERT INTO usuarios (usuario, contrasena, nombre_completo, rol)
+        VALUES (%s, %s, %s, %s)
+        ON CONFLICT (usuario) DO NOTHING
+    ''', ('admin', '123456', 'Administrador', 'admin'))
+    
     conn.commit()
+    cur.close()
     conn.close()
+
 
 @app.route('/')
 def index():
@@ -49,42 +66,61 @@ def login():
         usuario = request.form['usuario']
         contrasena = request.form['contrasena']
         conn = get_db_connection()
-        c = conn.cursor()
-        c.execute("SELECT * FROM usuarios WHERE usuario = ? AND contrasena = ?", (usuario, contrasena))
-        user = c.fetchone()
+        cur = conn.cursor()
+        cur.execute("SELECT * FROM usuarios WHERE usuario = %s AND contrasena = %s", (usuario, contrasena))
+        user = cur.fetchone()
         conn.close()
         if user:
+            session['user_id'] = user['id']
+            session['rol'] = user['rol']
+            session['nombre'] = user['nombre_completo']
             return redirect(url_for('dashboard'))
         else:
             flash('Usuario o contraseña incorrectos')
     return render_template('login.html')
 
-from datetime import datetime
 
 @app.route('/dashboard')
 def dashboard():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    user_id = session['user_id']
+    rol = session['rol']
+
     conn = get_db_connection()
-    c = conn.cursor()
+    cur = conn.cursor()
     
-    # Todas las visitas
-    c.execute("SELECT * FROM visitas ORDER BY id DESC")
-    visitas = c.fetchall()
-    
+    #Filtrar visitas por rol
+    if rol in ['admin', 'jefe']:
+        cur.execute("SELECT * FROM visitas ORDER BY id DESC")
+    else:
+        cur.execute("SELECT * FROM visitas WHERE usuario_id = %s ORDER BY id DESC", (user_id,))
+    visitas = cur.fetchall()
+
     # Totales
     total_visitas = len(visitas)
-    
+
     # Visitas este mes
     mes_actual = datetime.now().strftime("%Y-%m")
-    c.execute("SELECT COUNT(*) FROM visitas WHERE fecha LIKE ?", (f"{mes_actual}%",))
-    visitas_mes = c.fetchone()[0]
-    
+    if rol in ['admin', 'jefe']:
+        cur.execute("SELECT COUNT(*) FROM visitas WHERE fecha LIKE %s", (f"{mes_actual}%",))
+    else:
+        cur.execute("SELECT COUNT(*) FROM visitas WHERE usuario_id = %s AND fecha LIKE %s", (user_id, f"{mes_actual}%",))
+    visitas_mes = cur.fetchone()['count']
+
     # Conteo por nivel
-    c.execute("SELECT nivel, COUNT(*) FROM visitas GROUP BY nivel")
-    niveles = dict(c.fetchall())
-    
+    if rol in ['admin', 'jefe']:
+        cur.execute("SELECT nivel, COUNT(*) FROM visitas GROUP BY nivel")
+    else:
+        cur.execute("SELECT nivel, COUNT(*) FROM visitas WHERE usuario_id = %s GROUP BY nivel", (user_id,))
+    niveles = dict(cur.fetchall())
+
     # Conteo por tipo
-    c.execute("SELECT tipo_visita, COUNT(*) FROM visitas GROUP BY tipo_visita")
-    tipos = dict(c.fetchall())
+    if rol in ['admin', 'jefe']:
+        cur.execute("SELECT tipo_visita, COUNT(*) FROM visitas GROUP BY tipo_visita")
+    else:
+        cur.execute("SELECT tipo_visita, COUNT(*) FROM visitas WHERE usuario_id = %s GROUP BY tipo_visita", (user_id,))
+    tipos = dict(cur.fetchall())
     
     conn.close()
     
@@ -93,34 +129,40 @@ def dashboard():
                          total_visitas=total_visitas,
                          visitas_mes=visitas_mes,
                          niveles=niveles,
-                         tipos=tipos)
+                         tipos=tipos)    
+
 
 def generar_numero_informe():
     """Genera un número de informe único: INF-2025-001, INF-2025-002, etc."""
     conn = get_db_connection()
-    c = conn.cursor()
-    c.execute("SELECT COUNT(*) FROM visitas")
-    count = c.fetchone()[0] + 1
+    cur = conn.cursor()
+    cur.execute("SELECT COUNT(*) FROM visitas")
+    count = cur.fetchone()['count'] + 1
     conn.close()
     año = datetime.now().year
     return f"INF-{año}-{count:03d}"
+
 @app.route('/nueva_visita', methods=['GET', 'POST'])
 def nueva_visita():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    
     if request.method == 'POST':
+        user_id = session['user_id']
         fecha = request.form['fecha']
         institucion = request.form['institucion']
         nivel = request.form['nivel']
         tipo = request.form['tipo']
-        especialista = request.form['especialista']
+        especialista = session['nombre'] # Usa el nombre del usuario logueado
         observaciones = request.form['observaciones']
 
         conn = get_db_connection()
-        c = conn.cursor()
+        cur = conn.cursor()
         numero_informe = generar_numero_informe()
-        c.execute('''
-            INSERT INTO visitas (numero_informe, fecha, institucion, nivel, tipo_visita, especialista, observaciones)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        ''', (numero_informe, fecha, institucion, nivel, tipo, especialista, observaciones))
+        cur.execute('''
+            INSERT INTO visitas (usuario_id, numero_informe, fecha, institucion, nivel, tipo_visita, observaciones)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+        ''', (user_id, numero_informe, fecha, institucion, nivel, tipo, observaciones))
         conn.commit()
         conn.close()
         flash('Visita registrada con éxito')
@@ -136,15 +178,24 @@ from flask import send_file
 
 @app.route('/generar_ppt/<int:visita_id>')
 def generar_ppt(visita_id):
-    # Obtener datos de la visita
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    
+    user_id = session['user_id']
+    rol = session['rol']
+
     conn = get_db_connection()
-    c = conn.cursor()
-    c.execute("SELECT * FROM visitas WHERE id = ?", (visita_id,))
-    visita = c.fetchone()
+    cur = conn.cursor()
+
+    if rol in ['admin', 'jefe']:
+        cur.execute("SELECT * FROM visitas WHERE id = %s", (visita_id,))
+    else:
+        cur.execute("SELECT * FROM visitas WHERE id = %s AND usuario_id = %s", (visita_id, user_id))
+    visita = cur.fetchone()
     conn.close()
 
     if not visita:
-        flash("Visita no encontrada")
+        flash("Visita no encontrada o no autorizada")
         return redirect(url_for('dashboard'))
 
     # Crear presentación
@@ -223,15 +274,24 @@ from flask import send_file
 
 @app.route('/generar_pdf/<int:visita_id>')
 def generar_pdf(visita_id):
-    # Obtener datos de la visita
-    conn = get_db_connection()
-    c = conn.cursor()
-    c.execute("SELECT * FROM visitas WHERE id = ?", (visita_id,))
-    visita = c.fetchone()
-    conn.close()
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    
+    user_id = session['user_id']
+    rol = session['rol']
 
+    conn = get_db_connection()
+    cur = conn.cursor()
+
+    if rol in ['admin', 'jefe']:
+        cur.execute("SELECT * FROM visitas WHERE id = %s", (visita_id,))
+    else:
+        cur.execute("SELECT * FROM visitas WHERE id = %s AND usuario_id = %s", (visita_id, user_id))
+    visita = cur.fetchone()
+    conn.close()
+    
     if not visita:
-        flash("Visita no encontrada")
+        flash("Visita no encontrada o no autorizada")
         return redirect(url_for('dashboard'))
 
     # Nombre del archivo
@@ -318,12 +378,50 @@ from openpyxl import Workbook
 from flask import send_file
 import os
 
+@app.route('/crear_usuarios')
+def crear_usuarios():
+    conn = get_db_connection()
+    cur = conn.cursor()
+    
+    # Crear jefe
+    cur.execute('''
+        INSERT INTO usuarios (usuario, contrasena, nombre_completo, rol)
+        VALUES (%s, %s, %s, %s)
+        ON CONFLICT (usuario) DO NOTHING
+    ''', ('jefe', 'jefe123', 'Jefe de Gestión Pedagógica', 'jefe'))
+    
+    # Crear especialistas (ejemplo: 2)
+    especialistas = [
+        ('espec1', 'espec123', 'Especialista 1'),
+        ('espec2', 'espec123', 'Especialista 2'),
+    ]
+    for user, pwd, nombre in especialistas:
+        cur.execute('''
+            INSERT INTO usuarios (usuario, contrasena, nombre_completo, rol)
+            VALUES (%s, %s, %s, %s)
+            ON CONFLICT (usuario) DO NOTHING
+        ''', (user, pwd, nombre, 'especialista'))
+    
+    conn.commit()
+    cur.close()
+    conn.close()
+    return "Usuarios creados: jefe, espec1, espec2"
+
 @app.route('/exportar_excel')
 def exportar_excel():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    
+    user_id = session['user_id']
+    rol = session['rol']
     conn = get_db_connection()
-    c = conn.cursor()
-    c.execute("SELECT numero_informe, fecha, institucion, nivel, tipo_visita, especialista, observaciones FROM visitas ORDER BY id DESC")
-    visitas = c.fetchall()
+    cur = conn.cursor()
+
+    if rol in ['admin', 'jefe']:
+        cur.execute("SELECT numero_informe, fecha, institucion, nivel, tipo_visita, observaciones FROM visitas ORDER BY id DESC")
+    else:
+        cur.execute("SELECT numero_informe, fecha, institucion, nivel, tipo_visita, observaciones FROM visitas WHERE usuario_id = %s ORDER BY id DESC", (user_id,))
+    visitas = cur.fetchall()
     conn.close()
 
     # Crear libro de Excel
