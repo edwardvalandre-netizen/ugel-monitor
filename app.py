@@ -83,17 +83,7 @@ def login():
     # Si es GET o el login falló, muestra el formulario
     return render_template('login.html')
 
-@app.route('/actualizar_admin')
-def actualizar_admin():
-    from werkzeug.security import generate_password_hash
-    conn = get_db_connection()
-    cur = conn.cursor()
-    # Hashear la contraseña "123456"
-    nueva_contrasena = generate_password_hash("123456")
-    cur.execute("UPDATE usuarios SET contrasena = %s WHERE usuario = %s", (nueva_contrasena, "admin"))
-    conn.commit()
-    conn.close()
-    return "Contraseña del admin actualizada a hash"
+
 
 @app.route('/dashboard')
 def dashboard():
@@ -486,6 +476,17 @@ def exportar_excel():
     wb.save(filepath)
 
     return send_file(filepath, as_attachment=True)
+@app.route('/actualizar_admin')
+def actualizar_admin():
+    from werkzeug.security import generate_password_hash
+    conn = get_db_connection()
+    cur = conn.cursor()
+    # Hashear la contraseña "123456"
+    nueva_contrasena = generate_password_hash("123456")
+    cur.execute("UPDATE usuarios SET contrasena = %s WHERE usuario = %s", (nueva_contrasena, "admin"))
+    conn.commit()
+    conn.close()
+    return "Contraseña del admin actualizada a hash"
 if __name__ == '__main__':
     init_db()
     port = int(os.environ.get("PORT", 10000))
