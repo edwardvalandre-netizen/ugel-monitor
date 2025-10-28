@@ -2,3 +2,4 @@ flask
 python-pptx
 reportlab
 openpyxl
+psycopg2-binary
