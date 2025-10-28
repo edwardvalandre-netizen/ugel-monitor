@@ -1,3 +1,4 @@
+from werkzeug.security import generate_password_hash, check_password_hash
 from flask import Flask, render_template, request, redirect, url_for, flash, session
 import os
 import psycopg2
@@ -67,7 +68,10 @@ def login():
         contrasena = request.form['contrasena']
         conn = get_db_connection()
         cur = conn.cursor()
-        cur.execute("SELECT * FROM usuarios WHERE usuario = %s AND contrasena = %s", (usuario, contrasena))
+        cur.execute("SELECT * FROM usuarios WHERE usuario = %s", (usuario,))
+        user = cur.fetchone()
+    if user and check_password_hash(user['contrasena'], contrasena):
+    # Iniciar sesión
         user = cur.fetchone()
         conn.close()
         if user:
@@ -377,6 +381,50 @@ def generar_pdf(visita_id):
 from openpyxl import Workbook
 from flask import send_file
 import os
+
+@app.route('/gestion_usuarios')
+def gestion_usuarios():
+    if 'rol' not in session or session['rol'] != 'admin':
+        flash('Acceso no autorizado')
+        return redirect(url_for('dashboard'))
+    
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM usuarios ORDER BY creado_en DESC")
+    usuarios = cur.fetchall()
+    conn.close()
+    return render_template('gestion_usuarios.html', usuarios=usuarios)
+
+@app.route('/crear_usuario', methods=['POST'])
+def crear_usuario():
+    if 'rol' not in session or session['rol'] != 'admin':
+        flash('Acceso no autorizado')
+        return redirect(url_for('dashboard'))
+    
+    usuario = request.form['usuario']
+    contrasena = request.form['contrasena']
+    nombre_completo = request.form['nombre_completo']
+    rol = request.form['rol']
+    
+    # Hashear la contraseña
+    contrasena_hash = generate_password_hash(contrasena)
+    
+    conn = get_db_connection()
+    cur = conn.cursor()
+    try:
+        cur.execute('''
+            INSERT INTO usuarios (usuario, contrasena, nombre_completo, rol)
+            VALUES (%s, %s, %s, %s)
+        ''', (usuario, contrasena_hash, nombre_completo, rol))
+        conn.commit()
+        flash('Usuario creado exitosamente')
+    except psycopg2.IntegrityError:
+        conn.rollback()
+        flash('Error: El nombre de usuario ya existe')
+    finally:
+        conn.close()
+    
+    return redirect(url_for('gestion_usuarios'))
 
 @app.route('/exportar_excel')
 def exportar_excel():

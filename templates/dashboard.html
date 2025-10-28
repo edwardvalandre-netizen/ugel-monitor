@@ -1,5 +1,14 @@
 {% extends "base.html" %}
 {% block content %}
+
+{% if session.get('rol') == 'admin' %}
+<div class="d-flex justify-content-end mb-3">
+    <a href="{{ url_for('gestion_usuarios') }}" class="btn btn-outline-secondary">
+        👥 Gestionar Usuarios
+    </a>
+</div>
+{% endif %}
+
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h3>📊 Panel de Gestión Pedagógica</h3>
     <a href="{{ url_for('nueva_visita') }}" class="btn btn-success">+ Nueva Visita</a>
