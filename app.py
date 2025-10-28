@@ -378,35 +378,6 @@ from openpyxl import Workbook
 from flask import send_file
 import os
 
-@app.route('/crear_usuarios')
-def crear_usuarios():
-    conn = get_db_connection()
-    cur = conn.cursor()
-    
-    # Crear jefe
-    cur.execute('''
-        INSERT INTO usuarios (usuario, contrasena, nombre_completo, rol)
-        VALUES (%s, %s, %s, %s)
-        ON CONFLICT (usuario) DO NOTHING
-    ''', ('jefe', 'jefe123', 'Jefe de Gestión Pedagógica', 'jefe'))
-    
-    # Crear especialistas (ejemplo: 2)
-    especialistas = [
-        ('espec1', 'espec123', 'Especialista 1'),
-        ('espec2', 'espec123', 'Especialista 2'),
-    ]
-    for user, pwd, nombre in especialistas:
-        cur.execute('''
-            INSERT INTO usuarios (usuario, contrasena, nombre_completo, rol)
-            VALUES (%s, %s, %s, %s)
-            ON CONFLICT (usuario) DO NOTHING
-        ''', (user, pwd, nombre, 'especialista'))
-    
-    conn.commit()
-    cur.close()
-    conn.close()
-    return "Usuarios creados: jefe, espec1, espec2"
-
 @app.route('/exportar_excel')
 def exportar_excel():
     if 'user_id' not in session:
