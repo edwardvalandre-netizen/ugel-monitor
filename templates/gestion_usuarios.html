@@ -1,1 +1,79 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h3>👥 Gestión de Usuarios</h3>
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalCrearUsuario">
+        + Nuevo Usuario
+    </button>
+</div>
 
+<!-- Tabla de usuarios -->
+<div class="table-responsive">
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Usuario</th>
+                <th>Nombre Completo</th>
+                <th>Rol</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for u in usuarios %}
+            {% if u.rol != 'admin' %} <!-- No mostrar al admin -->
+            <tr>
+                <td>{{ u.usuario }}</td>
+                <td>{{ u.nombre_completo }}</td>
+                <td>
+                    <span class="badge bg-{{ 'success' if u.rol == 'jefe' else 'info' }}">{{ u.rol }}</span>
+                </td>
+                <td>
+                    <button class="btn btn-sm btn-outline-warning">Editar</button>
+                    <button class="btn btn-sm btn-outline-danger">Desactivar</button>
+                </td>
+            </tr>
+            {% endif %}
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Modal: Crear usuario -->
+<div class="modal fade" id="modalCrearUsuario" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Crear Nuevo Usuario</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('crear_usuario') }}">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Usuario (único)</label>
+                        <input type="text" name="usuario" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Contraseña</label>
+                        <input type="password" name="contrasena" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Nombre Completo</label>
+                        <input type="text" name="nombre_completo" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Rol</label>
+                        <select name="rol" class="form-select" required>
+                            <option value="especialista">Especialista</option>
+                            <option value="jefe">Jefe de Área</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Crear Usuario</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
