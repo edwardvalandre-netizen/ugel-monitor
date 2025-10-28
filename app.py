@@ -70,17 +70,17 @@ def login():
         cur = conn.cursor()
         cur.execute("SELECT * FROM usuarios WHERE usuario = %s", (usuario,))
         user = cur.fetchone()
-    if user and check_password_hash(user['contrasena'], contrasena):
-    # Iniciar sesión
-        user = cur.fetchone()
         conn.close()
-        if user:
+        
+        if user and check_password_hash(user['contrasena'], contrasena):
             session['user_id'] = user['id']
             session['rol'] = user['rol']
             session['nombre'] = user['nombre_completo']
             return redirect(url_for('dashboard'))
         else:
             flash('Usuario o contraseña incorrectos')
+    
+    # Si es GET o el login falló, muestra el formulario
     return render_template('login.html')
 
 
