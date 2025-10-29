@@ -4,6 +4,7 @@ import os
 import psycopg2
 from psycopg2.extras import RealDictCursor
 from datetime import datetime
+db_initialized = False
 
 app = Flask(__name__)
 app.secret_key = "ugel_lauricocha_2025"
@@ -17,7 +18,6 @@ def get_db_connection():
     return conn
 
 # Inicializar base de datos
-def init_db():
     conn = get_db_connection()
     cur = conn.cursor()
     # Tabla de usuarios
@@ -477,9 +477,13 @@ def exportar_excel():
 
     return send_file(filepath, as_attachment=True)
 
-@app.before_first_request
+@app.before_request
 def initialize():
-    init_db()
+    global db_initialized
+    if not db_initialized:
+
+        init_db()
+        db_initialized = True
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 10000))
