@@ -481,7 +481,6 @@ def exportar_excel():
 def initialize():
     global db_initialized
     if not db_initialized:
-
         init_db()
         db_initialized = True
 
