@@ -50,7 +50,7 @@ def init_db():
         INSERT INTO usuarios (usuario, contrasena, nombre_completo, rol)
         VALUES (%s, %s, %s, %s)
         ON CONFLICT (usuario) DO NOTHING
-    ''', ('admin', 'Edward123', 'Administrador', 'edward20152'))
+    ''', ('admin', '123456', 'Administrador', 'admin'))
     
     conn.commit()
     cur.close()
@@ -481,6 +481,6 @@ def exportar_excel():
 def initialize():
     init_db()
 
-if __name__ == '__main__':
+    if __name__ == '__main__':
     port = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=port)
