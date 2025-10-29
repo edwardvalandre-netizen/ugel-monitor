@@ -18,6 +18,7 @@ def get_db_connection():
     return conn
 
 # Inicializar base de datos
+def init_db():
     conn = get_db_connection()
     cur = conn.cursor()
     # Tabla de usuarios
