@@ -398,20 +398,7 @@ def gestion_usuarios():
     conn.close()
     return render_template('gestion_usuarios.html', usuarios=usuarios)
 
-@app.route('/agregar_activo')
-def agregar_activo():
-    if 'rol' not in session or session['rol'] != 'admin':
-        return "Acceso denegado", 403
-    conn = get_db_connection()
-    cur = conn.cursor()
-    try:
-        cur.execute("ALTER TABLE usuarios ADD COLUMN activo BOOLEAN DEFAULT TRUE;")
-        conn.commit()
-        return "✅ Columna 'activo' añadida"
-    except Exception as e:
-        return f"⚠️ Posible error (la columna ya existe): {str(e)}"
-    finally:
-        conn.close()
+
 
 @app.route('/crear_usuario', methods=['POST'])
 def crear_usuario():
@@ -548,6 +535,26 @@ def actualizar_usuario(usuario_id):
     conn.close()
     flash('Usuario actualizado exitosamente')
     return redirect(url_for('gestion_usuarios'))   
+
+@app.route('/eliminar_usuario/<int:usuario_id>', methods=['POST'])
+def eliminar_usuario(usuario_id):
+    if 'rol' not in session or session['rol'] != 'admin':
+        flash('Acceso no autorizado')
+        return redirect(url_for('dashboard'))
+    
+    # Evita que el admin se elimine a sí mismo
+    if usuario_id == session['user_id']:
+        flash('No puedes eliminarte a ti mismo')
+        return redirect(url_for('gestion_usuarios'))
+    
+    conn = get_db_connection()
+    cur = conn.cursor()
+    # En lugar de DELETE, desactivamos
+    cur.execute("UPDATE usuarios SET activo = FALSE WHERE id = %s", (usuario_id,))
+    conn.commit()
+    conn.close()
+    flash('Usuario desactivado exitosamente')
+    return redirect(url_for('gestion_usuarios'))
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 10000))

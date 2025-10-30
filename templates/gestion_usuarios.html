@@ -29,12 +29,14 @@
         </td>
         <td>
             <a href="{{ url_for('editar_usuario', usuario_id=u.id) }}" class="btn btn-sm btn-outline-warning">Editar</a>
-            {% if u.activo %}
-                <span class="badge bg-success ms-2">Activo</span>
-            {% else %}
-                <span class="badge bg-secondary ms-2">Inactivo</span>
+            {% if u.activo and u.rol != 'admin' %}
+                <form method="POST" action="{{ url_for('eliminar_usuario', usuario_id=u.id) }}" style="display:inline;" onsubmit="return confirm('¿Desactivar este usuario? Sus visitas se conservarán.')">
+                <button type="submit" class="btn btn-sm btn-outline-danger">Desactivar</button>
+            </form>
+            {% elif not u.activo %}
+                <span class="badge bg-secondary">Inactivo</span>
             {% endif %}
-        </td>
+</td>
     </tr>
     {% endif %}
     {% endfor %}
