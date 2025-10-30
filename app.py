@@ -73,13 +73,14 @@ def login():
         user = cur.fetchone()
         conn.close()
         
-        if user and check_password_hash(user['contrasena'], contrasena):
-            session['user_id'] = user['id']
-            session['rol'] = user['rol']
-            session['nombre'] = user['nombre_completo']
-            return redirect(url_for('dashboard'))
-        else:
-            flash('Usuario o contraseña incorrectos')
+        # Dentro de /login, después de cur.fetchone()
+    if user and user['activo'] and check_password_hash(user['contrasena'], contrasena):
+        session['user_id'] = user['id']
+        session['rol'] = user['rol']
+        session['nombre'] = user['nombre_completo']
+        return redirect(url_for('dashboard'))
+    else:
+        flash('Usuario o contraseña incorrectos')
     
     # Si es GET o el login falló, muestra el formulario
     return render_template('login.html')
@@ -392,10 +393,25 @@ def gestion_usuarios():
     
     conn = get_db_connection()
     cur = conn.cursor()
-    cur.execute("SELECT * FROM usuarios ORDER BY creado_en DESC")
+    cur.execute("SELECT id, usuario, nombre_completo, rol, activo, creado_en FROM usuarios ORDER BY creado_en DESC")
     usuarios = cur.fetchall()
     conn.close()
     return render_template('gestion_usuarios.html', usuarios=usuarios)
+
+@app.route('/agregar_activo')
+def agregar_activo():
+    if 'rol' not in session or session['rol'] != 'admin':
+        return "Acceso denegado", 403
+    conn = get_db_connection()
+    cur = conn.cursor()
+    try:
+        cur.execute("ALTER TABLE usuarios ADD COLUMN activo BOOLEAN DEFAULT TRUE;")
+        conn.commit()
+        return "✅ Columna 'activo' añadida"
+    except Exception as e:
+        return f"⚠️ Posible error (la columna ya existe): {str(e)}"
+    finally:
+        conn.close()
 
 @app.route('/crear_usuario', methods=['POST'])
 def crear_usuario():
@@ -478,27 +494,60 @@ def exportar_excel():
 
     return send_file(filepath, as_attachment=True)
 
-@app.route('/agregar_activo')
-def agregar_activo():
-    if session.get('rol') != 'admin':
-        return "Acceso denegado", 403
-    conn = get_db_connection()
-    cur = conn.cursor()
-    try:
-        cur.execute("ALTER TABLE usuarios ADD COLUMN activo BOOLEAN DEFAULT TRUE;")
-        conn.commit()
-        return "✅ Columna 'activo' añadida"
-    except Exception as e:
-        return f"⚠️ Error (puede ya existir): {str(e)}"
-    finally:
-        conn.close()
-        
 @app.before_request
 def initialize():
     global db_initialized
     if not db_initialized:
         init_db()
         db_initialized = True
+
+@app.route('/editar_usuario/<int:usuario_id>')
+def editar_usuario(usuario_id):
+    if 'rol' not in session or session['rol'] != 'admin':
+        flash('Acceso no autorizado')
+        return redirect(url_for('dashboard'))
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM usuarios WHERE id = %s", (usuario_id,))
+    usuario = cur.fetchone()
+    conn.close()
+    if not usuario:
+        flash('Usuario no encontrado')
+        return redirect(url_for('gestion_usuarios'))
+    return render_template('editar_usuario.html', usuario=usuario)
+
+@app.route('/actualizar_usuario/<int:usuario_id>', methods=['POST'])
+def actualizar_usuario(usuario_id):
+    if 'rol' not in session or session['rol'] != 'admin':
+        flash('Acceso no autorizado')
+        return redirect(url_for('dashboard'))
+    
+    nombre_completo = request.form['nombre_completo']
+    rol = request.form['rol']
+    activo = 'activo' in request.form
+    contrasena = request.form['contrasena']
+    
+    conn = get_db_connection()
+    cur = conn.cursor()
+    
+    if contrasena:
+        contrasena_hash = generate_password_hash(contrasena)
+        cur.execute('''
+            UPDATE usuarios 
+            SET nombre_completo = %s, rol = %s, activo = %s, contrasena = %s
+            WHERE id = %s
+        ''', (nombre_completo, rol, activo, contrasena_hash, usuario_id))
+    else:
+        cur.execute('''
+            UPDATE usuarios 
+            SET nombre_completo = %s, rol = %s, activo = %s
+            WHERE id = %s
+        ''', (nombre_completo, rol, activo, usuario_id))
+    
+    conn.commit()
+    conn.close()
+    flash('Usuario actualizado exitosamente')
+    return redirect(url_for('gestion_usuarios'))   
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 10000))
