@@ -478,6 +478,21 @@ def exportar_excel():
 
     return send_file(filepath, as_attachment=True)
 
+@app.route('/agregar_activo')
+def agregar_activo():
+    if session.get('rol') != 'admin':
+        return "Acceso denegado", 403
+    conn = get_db_connection()
+    cur = conn.cursor()
+    try:
+        cur.execute("ALTER TABLE usuarios ADD COLUMN activo BOOLEAN DEFAULT TRUE;")
+        conn.commit()
+        return "✅ Columna 'activo' añadida"
+    except Exception as e:
+        return f"⚠️ Error (puede ya existir): {str(e)}"
+    finally:
+        conn.close()
+        
 @app.before_request
 def initialize():
     global db_initialized
