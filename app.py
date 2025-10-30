@@ -79,8 +79,8 @@ def login():
             session['rol'] = user['rol']
             session['nombre'] = user['nombre_completo']
             return redirect(url_for('dashboard'))
-    else:
-        flash('Usuario inactivo o credenciales incorrectos')
+        else:
+            flash('Usuario inactivo o credenciales incorrectos')
     
     # Si es GET o el login falló, muestra el formulario
     return render_template('login.html')
