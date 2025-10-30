@@ -555,7 +555,10 @@ def eliminar_usuario(usuario_id):
     conn.close()
     flash('Usuario desactivado exitosamente')
     return redirect(url_for('gestion_usuarios'))
-
+@app.route('/logout')
+def logout():
+    session.clear()  # Elimina toda la sesión
+    return redirect(url_for('login'))
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=port)
