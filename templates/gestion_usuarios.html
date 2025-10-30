@@ -25,8 +25,13 @@
                 <td>{{ u.usuario }}</td>
                 <td>{{ u.nombre_completo }}</td>
                 <td>
-                    <span class="badge bg-{{ 'success' if u.rol == 'jefe' else 'info' }}">{{ u.rol }}</span>
-                </td>
+                    <a href="{{ url_for('editar_usuario', usuario_id=u['id']) }}" class="btn btn-sm btn-outline-warning">Editar</a>
+                    {% if u['activo'] %}
+                        <span class="badge bg-success">Activo</span>
+                    {% else %}
+                        <span class="badge bg-secondary">Inactivo</span>
+                    {% endif %}
+</td>
                 <td>
                     <button class="btn btn-sm btn-outline-warning">Editar</button>
                     <button class="btn btn-sm btn-outline-danger">Desactivar</button>
