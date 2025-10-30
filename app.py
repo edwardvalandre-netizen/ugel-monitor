@@ -73,14 +73,14 @@ def login():
         user = cur.fetchone()
         conn.close()
         
-        # Dentro de /login, después de cur.fetchone()
-    if user and user['activo'] and check_password_hash(user['contrasena'], contrasena):
-        session['user_id'] = user['id']
-        session['rol'] = user['rol']
-        session['nombre'] = user['nombre_completo']
-        return redirect(url_for('dashboard'))
+        # Validar SOLO si user existe y está activo
+        if user and user['activo'] and check_password_hash(user['contrasena'], contrasena):
+            session['user_id'] = user['id']
+            session['rol'] = user['rol']
+            session['nombre'] = user['nombre_completo']
+            return redirect(url_for('dashboard'))
     else:
-        flash('Usuario o contraseña incorrectos')
+        flash('Usuario inactivo o credenciales incorrectos')
     
     # Si es GET o el login falló, muestra el formulario
     return render_template('login.html')
