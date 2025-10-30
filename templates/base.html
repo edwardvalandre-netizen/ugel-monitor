@@ -45,12 +45,33 @@
 </head>
 <body>
     <div class="header d-flex align-items-center w-100 px-4 py-2">
-    <img src="{{ url_for('static', filename='img/logo.png') }}" class="logo" alt="Logo UGEL">
-    <!-- Botón de inicio al lado del logo -->
-    <a href="{{ url_for('dashboard') }}" class="btn btn-sm btn-outline-light me-2">
-        🏠 Inicio
-    </a>
+    <!-- Logo clickeable -->
+    {% if session.get('user_id') %}
+        <a href="{{ url_for('dashboard') }}">
+            <img src="{{ url_for('static', filename='img/logo.png') }}" class="logo" alt="Logo UGEL">
+        </a>
+    {% else %}
+        <img src="{{ url_for('static', filename='img/logo.png') }}" class="logo" alt="Logo UGEL">
+    {% endif %}
+
     <h4 class="header-title ms-3 mb-0">UGEL Lauricocha - SISTEMA DE MONITOREO PEDAGÓGICO </h4>
+        {% if session.get('nombre') %}
+            <small class="d-block">Bienvenido, {{ session.get('nombre') }}</small>
+        {% endif %}
+    </h4>
+    <!-- Menú de usuario (solo si está logueado) -->
+    {% if session.get('user_id') %}
+        <div class="dropdown ms-auto">
+            <button class="btn btn-sm btn-outline-light dropdown-toggle" type="button" id="userMenu" data-bs-toggle="dropdown">
+                👤 {{ session.get('nombre') }}
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userMenu">
+                <li><a class="dropdown-item" href="{{ url_for('dashboard') }}">Inicio</a></li>
+                <li><hr class="dropdown-divider"></li>
+                <li><a class="dropdown-item text-danger" href="{{ url_for('logout') }}">Cerrar sesión</a></li>
+            </ul>
+        </div>
+    {% endif %}
     <button id="themeToggle" class="btn btn-sm btn-outline-light ms-auto me-3">
         🌙 Modo Oscuro
     </button>
