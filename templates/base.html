@@ -46,6 +46,10 @@
 <body>
     <div class="header d-flex align-items-center w-100 px-4 py-2">
     <img src="{{ url_for('static', filename='img/logo.png') }}" class="logo" alt="Logo UGEL">
+    <!-- Botón de inicio al lado del logo -->
+    <a href="{{ url_for('dashboard') }}" class="btn btn-sm btn-outline-light me-2">
+        🏠 Inicio
+    </a>
     <h4 class="header-title ms-3 mb-0">UGEL Lauricocha - SISTEMA DE MONITOREO PEDAGÓGICO </h4>
     <button id="themeToggle" class="btn btn-sm btn-outline-light ms-auto me-3">
         🌙 Modo Oscuro
