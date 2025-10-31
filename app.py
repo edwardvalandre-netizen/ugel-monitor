@@ -209,8 +209,15 @@ def generar_ppt(visita_id):
     WHERE v.id = %s
 """, (visita_id,))
     else:
-        cur.execute("SELECT * FROM visitas WHERE id = %s AND usuario_id = %s", (visita_id, user_id))
-    visita = cur.fetchone()
+    
+        cur.execute("""
+    SELECT v.*, u.nombre_completo as especialista_nombre
+    FROM visitas v
+    JOIN usuarios u ON v.usuario_id = u.id
+    WHERE v.id = %s
+""", (visita_id,))
+
+    visita = cur.fertchone()
     conn.close()
 
     if not visita:
@@ -303,9 +310,20 @@ def generar_pdf(visita_id):
     cur = conn.cursor()
 
     if rol in ['admin', 'jefe']:
-        cur.execute("SELECT * FROM visitas WHERE id = %s", (visita_id,))
+        cur.execute("""
+            SELECT v.*, u.nombre_completo as especialista_nombre
+            FROM visitas v
+            JOIN usuarios u ON v.usuario_id = u.id
+            WHERE v.id = %s
+        """, (visita_id,))
     else:
-        cur.execute("SELECT * FROM visitas WHERE id = %s AND usuario_id = %s", (visita_id, user_id))
+        cur.execute("""
+            SELECT v.*, u.nombre_completo as especialista_nombre
+            FROM visitas v
+            JOIN usuarios u ON v.usuario_id = u.id
+            WHERE v.id = %s AND v.usuario_id = %s
+        """, (visita_id, user_id))
+    
     visita = cur.fetchone()
     conn.close()
     
@@ -313,23 +331,20 @@ def generar_pdf(visita_id):
         flash("Visita no encontrada o no autorizada")
         return redirect(url_for('dashboard'))
 
-    # Nombre del archivo
     filename = f"informe_visita_{visita_id}.pdf"
     filepath = os.path.join(os.path.dirname(__file__), filename)
 
-    # Crear PDF
     doc = SimpleDocTemplate(filepath, pagesize=letter,
                             rightMargin=72, leftMargin=72,
                             topMargin=72, bottomMargin=72)
     styles = getSampleStyleSheet()
 
-    # Estilo personalizado
     title_style = ParagraphStyle(
         'CustomTitle',
         parent=styles['Heading1'],
         fontSize=16,
         spaceAfter=14,
-        textColor=Color(0, 51/255, 102/255),  # Azul UGEL
+        textColor=Color(0, 51/255, 102/255),
         alignment=TA_CENTER
     )
 
@@ -341,10 +356,8 @@ def generar_pdf(visita_id):
         alignment=TA_LEFT
     )
 
-    # Contenido
     story = []
 
-    # Logo
     logo_path = os.path.join(os.path.dirname(__file__), 'templates_ppt', 'logo.png')
     if os.path.exists(logo_path):
         im = Image(logo_path, 1.5*inch, 0.8*inch)
@@ -352,20 +365,17 @@ def generar_pdf(visita_id):
         story.append(im)
         story.append(Spacer(1, 24))
 
-    # Título
     story.append(Paragraph("INFORME DE VISITA PEDAGÓGICA", title_style))
     story.append(Spacer(1, 12))
 
-    # Número de informe
-    story.append(Paragraph(f"<b>Número de Informe:</b> {visita['nuevo_informe']}", normal_style))
+    story.append(Paragraph(f"<b>Número de Informe:</b> {visita['numero_informe']}", normal_style))
     story.append(Spacer(1, 12))
 
-    # Datos
     datos = [
         f"<b>Institución Educativa:</b> {visita['institucion']}",
         f"<b>Nivel:</b> {visita['nivel']}",
         f"<b>Tipo de Visita:</b> {visita['tipo_visita']}",
-        f"<b>Especialista:</b> {visita['observaciones']}",
+        f"<b>Especialista:</b> {visita['especialista_nombre']}",
         f"<b>Fecha:</b> {visita['fecha']}",
     ]
 
@@ -373,66 +383,18 @@ def generar_pdf(visita_id):
         story.append(Paragraph(dato, normal_style))
 
     story.append(Spacer(1, 18))
-
-    # Observaciones
     story.append(Paragraph("<b>OBSERVACIONES Y RECOMENDACIONES</b>", normal_style))
     story.append(Spacer(1, 6))
-    obs = visita[7] if visita[7] else "Sin observaciones registradas."
+    obs = visita['observaciones'] if visita['observaciones'] else "Sin observaciones registradas."
     story.append(Paragraph(obs, normal_style))
 
     story.append(Spacer(1, 36))
-
-    # Espacio para firma
     story.append(Paragraph("_____________________________________", normal_style))
     story.append(Paragraph("Firma del Especialista", normal_style))
     story.append(Spacer(1, 12))
     story.append(Paragraph("_____________________________________", normal_style))
     story.append(Paragraph("Sello de la Institución Educativa", normal_style))
 
-    # Generar PDF
-    doc.build(story)
-    return send_file(filepath, as_attachment=True)
-    
-def generar_pdf_mensual(visitas, mes):
-    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
-    from reportlab.lib import colors
-    
-    filename = f"informe_mensual_{mes}.pdf"
-    filepath = os.path.join(os.path.dirname(__file__), filename)
-    
-    doc = SimpleDocTemplate(filepath, pagesize=letter)
-    styles = getSampleStyleSheet()
-    story = []
-    
-    # Título
-    story.append(Paragraph(f"<b>INFORME MENSUAL DE MONITOREO PEDAGÓGICO</b>", styles['Title']))
-    story.append(Paragraph(f"<b>Mes: {mes}</b>", styles['Heading2']))
-    story.append(Spacer(1, 12))
-    
-    # Tabla de visitas
-    if visitas:
-        data = [["N° Informe", "Fecha", "Institución", "Especialista", "Tipo"]]
-        for v in visitas:
-            data.append([
-                v['numero_informe'],
-                v['fecha'],
-                v['institucion'],
-                v['especialista_nombre'],
-                v['tipo_visita']
-            ])
-        
-        table = Table(data)
-        table.setStyle(TableStyle([
-            ('BACKGROUND', (0,0), (-1,0), colors.gray),
-            ('TEXTCOLOR', (0,0), (-1,0), colors.whitesmoke),
-            ('ALIGN', (0,0), (-1,-1), 'CENTER'),
-            ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0,0), (-1,0), 10),
-            ('BOTTOMPADDING', (0,0), (-1,0), 12),
-            ('GRID', (0,0), (-1,-1), 1, colors.black)
-        ]))
-        story.append(table)
-    
     doc.build(story)
     return send_file(filepath, as_attachment=True)
     
@@ -499,26 +461,34 @@ def exportar_excel():
     cur = conn.cursor()
 
     if rol in ['admin', 'jefe']:
-        cur.execute("SELECT numero_informe, fecha, institucion, nivel, tipo_visita, observaciones FROM visitas ORDER BY id DESC")
+        cur.execute("""
+            SELECT v.numero_informe, v.fecha, v.institucion, v.nivel, v.tipo_visita, u.nombre_completo as especialista, v.observaciones
+            FROM visitas v
+            JOIN usuarios u ON v.usuario_id = u.id
+            ORDER BY v.id DESC
+        """)
     else:
-        cur.execute("SELECT numero_informe, fecha, institucion, nivel, tipo_visita, observaciones FROM visitas WHERE usuario_id = %s ORDER BY id DESC", (user_id,))
+        cur.execute("""
+            SELECT v.numero_informe, v.fecha, v.institucion, v.nivel, v.tipo_visita, u.nombre_completo as especialista, v.observaciones
+            FROM visitas v
+            JOIN usuarios u ON v.usuario_id = u.id
+            WHERE v.usuario_id = %s
+            ORDER BY v.id DESC
+        """, (user_id,))
+    
     visitas = cur.fetchall()
     conn.close()
 
-    # Crear libro de Excel
     wb = Workbook()
     ws = wb.active
     ws.title = "Visitas Pedagógicas"
 
-    # Encabezados
     headers = ["N° Informe", "Fecha", "Institución", "Nivel", "Tipo de Visita", "Especialista", "Observaciones"]
     ws.append(headers)
 
-    # Datos
     for visita in visitas:
         ws.append(visita)
 
-    # Ajustar ancho de columnas
     for col in ws.columns:
         max_length = 0
         column = col[0].column_letter
@@ -531,7 +501,6 @@ def exportar_excel():
         adjusted_width = (max_length + 2)
         ws.column_dimensions[column].width = min(adjusted_width, 50)
 
-    # Guardar
     filename = "visitas_pedagogicas.xlsx"
     filepath = os.path.join(os.path.dirname(__file__), filename)
     wb.save(filepath)
