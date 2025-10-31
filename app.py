@@ -230,7 +230,7 @@ def generar_ppt(visita_id):
     tf = title_box.text_frame
     tf.clear()
     p = tf.paragraphs[0]
-    p.text = f"REPORTE DE VISITA PEDAGÓGICA\n{visita[1]}"  # ← Correcto
+    p.text = f"REPORTE DE VISITA PEDAGÓGICA\n{visita['numero_informe'}"  # ← Correcto
     p.font.bold = True
     p.font.size = Pt(28)
     p.font.color.rgb = RGBColor(0, 51, 102)  # Azul UGEL
@@ -241,7 +241,7 @@ def generar_ppt(visita_id):
     tf2 = sub_box.text_frame
     tf2.clear()
     p2 = tf2.paragraphs[0]
-    p2.text = f"Institución: {visita[3]}\nEspecialista: {visita[6]}\nFecha: {visita[2]} | Tipo: {visita[5]}"
+    p2.text = f"Institución: {visita['institucion']}\nEspecialista: {visita['observaciones']}\nFecha: {visita['fecha']} | Tipo: {visita['tipo_visita']}"
     p2.font.size = Pt(18)
     p2.font.color.rgb = RGBColor(0, 0, 0)
     p2.alignment = PP_ALIGN.CENTER
@@ -264,7 +264,7 @@ def generar_ppt(visita_id):
     tf4 = obs_box.text_frame
     tf4.clear()
     p4 = tf4.paragraphs[0]
-    p4.text = f"Responsable: {visita[6]}\n\n{visita[7] if visita[7] else 'Sin observaciones.'}"
+    p4.text = f"Responsable: {visita['observaciones']}\n\n{visita['observaciones'] if visita['observaciones'] else 'Sin observaciones.'}"
     p4.font.size = Pt(16)
     p4.font.color.rgb = RGBColor(0, 0, 0)
 
@@ -357,11 +357,11 @@ def generar_pdf(visita_id):
 
     # Datos
     datos = [
-        f"<b>Institución Educativa:</b> {visita[3]}",
-        f"<b>Nivel:</b> {visita[4]}",
-        f"<b>Tipo de Visita:</b> {visita[5]}",
-        f"<b>Especialista:</b> {visita[6]}",
-        f"<b>Fecha:</b> {visita[2]}",
+        f"<b>Institución Educativa:</b> {visita['institucion']}",
+        f"<b>Nivel:</b> {visita['nivel']}",
+        f"<b>Tipo de Visita:</b> {visita['tipo_visita']}",
+        f"<b>Especialista:</b> {visita['observaciones']}",
+        f"<b>Fecha:</b> {visita['fecha']}",
     ]
 
     for dato in datos:
@@ -629,7 +629,7 @@ def generar_informe_mensual(mes):
     conn.close()
     
     # Generar PDF (usando tu función existente de PDF, pero adaptada)
-    return generar_informe_mensual(visitas, mes)
+    return generar_pdf_mensual(visitas, mes)
 
 @app.route('/logout')
 def logout():
