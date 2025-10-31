@@ -217,7 +217,7 @@ def generar_ppt(visita_id):
     WHERE v.id = %s
 """, (visita_id,))
 
-    visita = cur.fertchone()
+    visita = cur.fetchone()
     conn.close()
 
     if not visita:
