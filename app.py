@@ -655,16 +655,18 @@ def generar_pdf_informe_mensual(visitas, mes, total, niveles, tipos):
     # Resumen estadístico
     story.append(Paragraph("<b>Resumen Estadístico</b>", styles['Heading3']))
     story.append(Paragraph(f"Total de visitas: {total}", styles['Normal']))
-    
-    if niveles:
+
+    if niveles and len(niveles) > 0:
         niveles_str = ", ".join([f"{k}: {v}" for k, v in niveles.items()])
         story.append(Paragraph(f"Visitas por nivel: {niveles_str}", styles['Normal']))
-    
-    if tipos:
+    else:
+        story.append(Paragraph("Visitas por nivel: No hay datos", styles['Normal']))
+
+    if tipos and len(tipos) > 0:
         tipos_str = ", ".join([f"{k}: {v}" for k, v in tipos.items()])
         story.append(Paragraph(f"Visitas por tipo: {tipos_str}", styles['Normal']))
-    
-    story.append(Spacer(1, 18))
+    else:
+        story.append(Paragraph("Visitas por tipo: No hay datos", styles['Normal']))
     
     # Tabla de visitas
     if visitas:
