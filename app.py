@@ -202,7 +202,12 @@ def generar_ppt(visita_id):
     cur = conn.cursor()
 
     if rol in ['admin', 'jefe']:
-        cur.execute("SELECT * FROM visitas WHERE id = %s", (visita_id,))
+        cur.execute("""
+    SELECT v.*, u.nombre_completo as especialista_nombre
+    FROM visitas v
+    JOIN usuarios u ON v.usuario_id = u.id
+    WHERE v.id = %s
+""", (visita_id,))
     else:
         cur.execute("SELECT * FROM visitas WHERE id = %s AND usuario_id = %s", (visita_id, user_id))
     visita = cur.fetchone()
@@ -352,7 +357,7 @@ def generar_pdf(visita_id):
     story.append(Spacer(1, 12))
 
     # Número de informe
-    story.append(Paragraph(f"<b>Número de Informe:</b> {visita[1]}", normal_style))
+    story.append(Paragraph(f"<b>Número de Informe:</b> {visita['nuevo_informe']}", normal_style))
     story.append(Spacer(1, 12))
 
     # Datos
