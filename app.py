@@ -604,21 +604,23 @@ def generar_informe_mensual(mes):
     # Estadísticas
     total = len(visitas)
     if total > 0:
+        # Conteo por nivel
         cur.execute("""
-            SELECT nivel, COUNT(*) 
+            SELECT nivel, COUNT(*) as total_nivel
             FROM visitas 
             WHERE fecha LIKE %s 
             GROUP BY nivel
         """, (f"{mes}%",))
-        niveles = dict(cur.fetchall())
-        
+        niveles = {row['nivel']: row['total_nivel'] for row in cur.fetchall()}
+    
+        # Conteo por tipo
         cur.execute("""
-            SELECT tipo_visita, COUNT(*) 
+            SELECT tipo_visita, COUNT(*) as total_tipo
             FROM visitas 
             WHERE fecha LIKE %s 
-            GROUP BY tipo_visita
+        GROUP BY tipo_visita
         """, (f"{mes}%",))
-        tipos = dict(cur.fetchall())
+        tipos = {row['tipo_visita']: row['total_tipo'] for row in cur.fetchall()}
     else:
         niveles = {}
         tipos = {}
@@ -656,18 +658,18 @@ def generar_pdf_informe_mensual(visitas, mes, total, niveles, tipos):
     story.append(Paragraph("<b>Resumen Estadístico</b>", styles['Heading3']))
     story.append(Paragraph(f"Total de visitas: {total}", styles['Normal']))
 
-    if niveles and len(niveles) > 0:
-        niveles_str = ", ".join([f"{k}: {v}" for k, v in niveles.items()])
+    if niveles:
+        niveles_str = ", ".join([f"{nivel}: {cantidad}" for nivel, cantidad in niveles.items()])
         story.append(Paragraph(f"Visitas por nivel: {niveles_str}", styles['Normal']))
     else:
         story.append(Paragraph("Visitas por nivel: No hay datos", styles['Normal']))
 
-    if tipos and len(tipos) > 0:
-        tipos_str = ", ".join([f"{k}: {v}" for k, v in tipos.items()])
+    if tipos:
+        tipos_str = ", ".join([f"{tipo}: {cantidad}" for tipo, cantidad in tipos.items()])
         story.append(Paragraph(f"Visitas por tipo: {tipos_str}", styles['Normal']))
     else:
         story.append(Paragraph("Visitas por tipo: No hay datos", styles['Normal']))
-    
+        
     # Tabla de visitas
     if visitas:
         story.append(Paragraph("<b>Detalle de Visitas</b>", styles['Heading3']))
