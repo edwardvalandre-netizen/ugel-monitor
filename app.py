@@ -601,11 +601,105 @@ def generar_informe_mensual(mes):
     """, (f"{mes}%",))
     visitas = cur.fetchall()
     
-    conn.close()
+    # Estadísticas
+    total = len(visitas)
+    if total > 0:
+        cur.execute("""
+            SELECT nivel, COUNT(*) 
+            FROM visitas 
+            WHERE fecha LIKE %s 
+            GROUP BY nivel
+        """, (f"{mes}%",))
+        niveles = dict(cur.fetchall())
+        
+        cur.execute("""
+            SELECT tipo_visita, COUNT(*) 
+            FROM visitas 
+            WHERE fecha LIKE %s 
+            GROUP BY tipo_visita
+        """, (f"{mes}%",))
+        tipos = dict(cur.fetchall())
+    else:
+        niveles = {}
+        tipos = {}
     
-    # Generar PDF (usando tu función existente de PDF, pero adaptada)
-    return generar_pdf_mensual(visitas, mes)
+    conn.close()
+  
+    return generar_pdf_informe_mensual(visitas, mes, total, niveles, tipos)
 
+def generar_pdf_informe_mensual(visitas, mes, total, niveles, tipos):
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+    from reportlab.lib import colors
+    from reportlab.lib.units import inch
+    
+    filename = f"informe_mensual_{mes}.pdf"
+    filepath = os.path.join(os.path.dirname(__file__), filename)
+    
+    doc = SimpleDocTemplate(filepath, pagesize=letter)
+    styles = getSampleStyleSheet()
+    story = []
+    
+    # Logo
+    logo_path = os.path.join(os.path.dirname(__file__), 'templates_ppt', 'logo.png')
+    if os.path.exists(logo_path):
+        im = Image(logo_path, 1.5*inch, 0.8*inch)
+        im.hAlign = 'CENTER'
+        story.append(im)
+        story.append(Spacer(1, 24))
+    
+    # Título
+    story.append(Paragraph("<b>INFORME MENSUAL DE MONITOREO PEDAGÓGICO</b>", styles['Title']))
+    story.append(Paragraph(f"<b>Mes: {mes}</b>", styles['Heading2']))
+    story.append(Spacer(1, 12))
+    
+    # Resumen estadístico
+    story.append(Paragraph("<b>Resumen Estadístico</b>", styles['Heading3']))
+    story.append(Paragraph(f"Total de visitas: {total}", styles['Normal']))
+    
+    if niveles:
+        niveles_str = ", ".join([f"{k}: {v}" for k, v in niveles.items()])
+        story.append(Paragraph(f"Visitas por nivel: {niveles_str}", styles['Normal']))
+    
+    if tipos:
+        tipos_str = ", ".join([f"{k}: {v}" for k, v in tipos.items()])
+        story.append(Paragraph(f"Visitas por tipo: {tipos_str}", styles['Normal']))
+    
+    story.append(Spacer(1, 18))
+    
+    # Tabla de visitas
+    if visitas:
+        story.append(Paragraph("<b>Detalle de Visitas</b>", styles['Heading3']))
+        data = [["N° Informe", "Fecha", "Institución", "Nivel", "Tipo", "Especialista"]]
+        for v in visitas:
+            data.append([
+                v['numero_informe'],
+                v['fecha'],
+                v['institucion'],
+                v['nivel'],
+                v['tipo_visita'],
+                v['especialista_nombre']
+            ])
+        
+        table = Table(data)
+        table.setStyle(TableStyle([
+            ('BACKGROUND', (0,0), (-1,0), colors.gray),
+            ('TEXTCOLOR', (0,0), (-1,0), colors.whitesmoke),
+            ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+            ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0,0), (-1,0), 10),
+            ('BOTTOMPADDING', (0,0), (-1,0), 12),
+            ('GRID', (0,0), (-1,-1), 1, colors.black)
+        ]))
+        story.append(table)
+    else:
+        story.append(Paragraph("No se registraron visitas en este mes.", styles['Normal']))
+    
+    story.append(Spacer(1, 36))
+    story.append(Paragraph("_____________________________________", styles['Normal']))
+    story.append(Paragraph("Firma del Jefe del Área de Gestión Pedagógica", styles['Normal']))
+    
+    doc.build(story)
+    return send_file(filepath, as_attachment=True)
 @app.route('/logout')
 def logout():
     session.clear()  # Elimina toda la sesión
