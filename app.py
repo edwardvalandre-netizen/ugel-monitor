@@ -4,6 +4,7 @@ import os
 import psycopg2
 from psycopg2.extras import RealDictCursor
 from datetime import datetime
+from flask import make_response
 db_initialized = False
 
 app = Flask(__name__)
@@ -85,7 +86,13 @@ def login():
     # Si es GET o el login falló, muestra el formulario
     return render_template('login.html')
 
-
+    # Desactivar caché
+    
+    resp = make_response(render_template('login.html'))
+    resp.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    resp.headers["Pragma"] = "no-cache"
+    resp.headers["Expires"] = "0"
+    return resp
 
 @app.route('/dashboard')
 def dashboard():
@@ -379,8 +386,53 @@ def generar_pdf(visita_id):
 
     # Generar PDF
     doc.build(story)
-
     return send_file(filepath, as_attachment=True)
+    
+def generar_pdf_mensual(visitas, mes):
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+    from reportlab.lib import colors
+    
+    filename = f"informe_mensual_{mes}.pdf"
+    filepath = os.path.join(os.path.dirname(__file__), filename)
+    
+    doc = SimpleDocTemplate(filepath, pagesize=letter)
+    styles = getSampleStyleSheet()
+    story = []
+    
+    # Título
+    story.append(Paragraph(f"<b>INFORME MENSUAL DE MONITOREO PEDAGÓGICO</b>", styles['Title']))
+    story.append(Paragraph(f"<b>Mes: {mes}</b>", styles['Heading2']))
+    story.append(Spacer(1, 12))
+    
+    # Tabla de visitas
+    if visitas:
+        data = [["N° Informe", "Fecha", "Institución", "Especialista", "Tipo"]]
+        for v in visitas:
+            data.append([
+                v['numero_informe'],
+                v['fecha'],
+                v['institucion'],
+                v['especialista_nombre'],
+                v['tipo_visita']
+            ])
+        
+        table = Table(data)
+        table.setStyle(TableStyle([
+            ('BACKGROUND', (0,0), (-1,0), colors.gray),
+            ('TEXTCOLOR', (0,0), (-1,0), colors.whitesmoke),
+            ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+            ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0,0), (-1,0), 10),
+            ('BOTTOMPADDING', (0,0), (-1,0), 12),
+            ('GRID', (0,0), (-1,-1), 1, colors.black)
+        ]))
+        story.append(table)
+    
+    doc.build(story)
+    return send_file(filepath, as_attachment=True)
+    
+
+    
 from openpyxl import Workbook
 from flask import send_file
 import os
@@ -555,10 +607,35 @@ def eliminar_usuario(usuario_id):
     conn.close()
     flash('Usuario desactivado exitosamente')
     return redirect(url_for('gestion_usuarios'))
+
+@app.route('/generar_informe_mensual/<mes>')
+def generar_informe_mensual(mes):
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    
+    conn = get_db_connection()
+    cur = conn.cursor()
+    
+    # Obtener visitas del mes
+    cur.execute("""
+        SELECT v.*, u.nombre_completo as especialista_nombre
+        FROM visitas v
+        JOIN usuarios u ON v.usuario_id = u.id
+        WHERE v.fecha LIKE %s
+        ORDER BY v.fecha DESC
+    """, (f"{mes}%",))
+    visitas = cur.fetchall()
+    
+    conn.close()
+    
+    # Generar PDF (usando tu función existente de PDF, pero adaptada)
+    return generar_informe_mensual(visitas, mes)
+
 @app.route('/logout')
 def logout():
     session.clear()  # Elimina toda la sesión
     return redirect(url_for('login'))
+
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=port)
