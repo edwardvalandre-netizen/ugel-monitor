@@ -235,7 +235,7 @@ def generar_ppt(visita_id):
     tf = title_box.text_frame
     tf.clear()
     p = tf.paragraphs[0]
-    p.text = f"REPORTE DE VISITA PEDAGÓGICA\n{visita['numero_informe'}"  # ← Correcto
+    p.text = f"REPORTE DE VISITA PEDAGÓGICA\n{visita['numero_informe']}"  # ← Correcto
     p.font.bold = True
     p.font.size = Pt(28)
     p.font.color.rgb = RGBColor(0, 51, 102)  # Azul UGEL
