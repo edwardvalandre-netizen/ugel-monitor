@@ -487,7 +487,15 @@ def exportar_excel():
     ws.append(headers)
 
     for visita in visitas:
-        ws.append(visita)
+        ws.append([
+            visita['numero_informe'],
+            visita['fecha'],
+            visita['institucion'],
+            visita['nivel'],
+            visita['tipo_visita'],
+            visita['especialista'],
+            visita['observaciones']
+        ])
 
     for col in ws.columns:
         max_length = 0
@@ -506,13 +514,6 @@ def exportar_excel():
     wb.save(filepath)
 
     return send_file(filepath, as_attachment=True)
-
-@app.before_request
-def initialize():
-    global db_initialized
-    if not db_initialized:
-        init_db()
-        db_initialized = True
 
 @app.route('/editar_usuario/<int:usuario_id>')
 def editar_usuario(usuario_id):
