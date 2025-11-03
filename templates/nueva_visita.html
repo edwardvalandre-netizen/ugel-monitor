@@ -35,14 +35,31 @@
             <option value="CEBA">CEBA</option>
         </select>
     </div>
+
+    <!-- ✅ FORTALEZAS -->
     <div class="mb-3">
-        <label class="form-label">Especialista / Responsable</label>
-        <input type="text" class="form-control" name="especialista" placeholder="Ej: Juan Pérez" required>
+        <label class="form-label">✅ Fortalezas</label>
+        <textarea class="form-control" name="fortalezas" rows="2" placeholder="Ej: Dominio del tema, participación activa de estudiantes" required></textarea>
     </div>
+
+    <!-- ⚠️ ÁREAS DE MEJORA -->
     <div class="mb-3">
-        <label class="form-label">Observaciones</label>
-        <textarea class="form-control" name="observaciones" rows="4"></textarea>
+        <label class="form-label">⚠️ Áreas de mejora</label>
+        <textarea class="form-control" name="mejoras" rows="2" placeholder="Ej: Gestión del tiempo, uso de materiales" required></textarea>
     </div>
+
+    <!-- 💡 RECOMENDACIONES -->
+    <div class="mb-3">
+        <label class="form-label">💡 Recomendaciones</label>
+        <textarea class="form-control" name="recomendaciones" rows="2" placeholder="Ej: Elaborar rúbricas de evaluación, usar cronómetro" required></textarea>
+    </div>
+
+    <!-- 📝 COMPROMISOS DEL DOCENTE -->
+    <div class="mb-3">
+        <label class="form-label">📝 Compromisos del docente</label>
+        <textarea class="form-control" name="compromisos" rows="2" placeholder="Ej: Preparar materiales para la próxima sesión"></textarea>
+    </div>
+
     <button type="submit" class="btn btn-primary">Registrar Visita</button>
     <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">Cancelar</a>
 </form>
