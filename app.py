@@ -708,7 +708,33 @@ def generar_pdf_informe_mensual(visitas, mes, total, niveles, tipos):
 def logout():
     session.clear()  # Elimina toda la sesión
     return redirect(url_for('login'))
-
+@app.route('/actualizar_visitas')
+def actualizar_visitas():
+    if session.get('rol') != 'admin':
+        return "Acceso denegado", 403
+    conn = get_db_connection()
+    cur = conn.cursor()
+    try:
+        cur.execute("ALTER TABLE visitas ADD COLUMN fortalezas TEXT")
+        cur.execute("ALTER TABLE visitas ADD COLUMN mejoras TEXT")
+        cur.execute("ALTER TABLE visitas ADD COLUMN recomendaciones TEXT")
+        cur.execute("ALTER TABLE visitas ADD COLUMN compromisos TEXT")
+        conn.commit()
+        return "✅ Columnas de observaciones estructuradas añadidas"
+    except Exception as e:
+        return f"⚠️ Ya existen o error: {str(e)}"
+    finally:
+        conn.close()
+@app.route('/verificar_columnas')
+def verificar_columnas():
+    if session.get('rol') != 'admin':
+        return "Acceso denegado", 403
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT column_name FROM information_schema.columns WHERE table_name = 'visitas'")
+    columnas = [row['column_name'] for row in cur.fetchall()]
+    conn.close()
+    return f"Columnas en 'visitas': {', '.join(columnas)}"
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=port)
