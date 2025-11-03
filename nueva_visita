@@ -169,6 +169,10 @@ def nueva_visita():
         tipo = request.form['tipo']
         especialista = session['nombre'] # Usa el nombre del usuario logueado
         observaciones = request.form['observaciones']
+        fortalezas = request.form['fortalezas']
+        mejoras = request.form['mejoras']
+        recomendaciones = request.form['recomendaciones']
+        compromisos = request.form['compromisos']  # ← este puede ser opcional
 
         conn = get_db_connection()
         cur = conn.cursor()
