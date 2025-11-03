@@ -735,26 +735,7 @@ def verificar_columnas():
     columnas = [row['column_name'] for row in cur.fetchall()]
     conn.close()
     return f"Columnas en 'visitas': {', '.join(columnas)}"
-@app.route('/agregar_columnas_observaciones')
-def agregar_columnas_observaciones():
-    if 'rol' not in session or session['rol'] != 'admin':
-        return "Acceso denegado", 403
-    
-    conn = get_db_connection()
-    cur = conn.cursor()
-    try:
-        # Añadir cada columna una por una (evita errores si ya existe)
-        cur.execute("ALTER TABLE visitas ADD COLUMN fortalezas TEXT")
-        cur.execute("ALTER TABLE visitas ADD COLUMN mejoras TEXT")
-        cur.execute("ALTER TABLE visitas ADD COLUMN recomendaciones TEXT")
-        cur.execute("ALTER TABLE visitas ADD COLUMN compromisos TEXT")
-        conn.commit()
-        return "✅ Columnas de observaciones estructuradas añadidas correctamente."
-    except Exception as e:
-        conn.rollback()
-        return f"⚠️ Advertencia (puede que las columnas ya existan): {str(e)}"
-    finally:
-        conn.close()
+
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=port)
