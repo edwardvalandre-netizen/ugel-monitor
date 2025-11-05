@@ -203,20 +203,19 @@ def generar_ppt(visita_id):
 
     if rol in ['admin', 'jefe']:
         cur.execute("""
-    SELECT v.*, u.nombre_completo as especialista_nombre
-    FROM visitas v
-    JOIN usuarios u ON v.usuario_id = u.id
-    WHERE v.id = %s
-""", (visita_id,))
+            SELECT v.*, u.nombre_completo as especialista_nombre
+            FROM visitas v
+            JOIN usuarios u ON v.usuario_id = u.id
+            WHERE v.id = %s
+        """, (visita_id,))
     else:
-    
         cur.execute("""
-    SELECT v.*, u.nombre_completo as especialista_nombre
-    FROM visitas v
-    JOIN usuarios u ON v.usuario_id = u.id
-    WHERE v.id = %s
-""", (visita_id,))
-
+            SELECT v.*, u.nombre_completo as especialista_nombre
+            FROM visitas v
+            JOIN usuarios u ON v.usuario_id = u.id
+            WHERE v.id = %s AND v.usuario_id = %s
+        """, (visita_id, user_id))
+    
     visita = cur.fetchone()
     conn.close()
 
@@ -224,69 +223,66 @@ def generar_ppt(visita_id):
         flash("Visita no encontrada o no autorizada")
         return redirect(url_for('dashboard'))
 
-    # Crear presentación
     prs = Presentation()
-    prs.slide_width = Inches(10)  # Tamaño estándar
+    prs.slide_width = Inches(10)
     prs.slide_height = Inches(7.5)
 
     # --- Diapositiva 1: Portada ---
-    slide = prs.slides.add_slide(prs.slide_layouts[6])  # Diseño en blanco
-
-    # Logo (izquierda superior)
+    slide = prs.slides.add_slide(prs.slide_layouts[6])
     logo_path = os.path.join(os.path.dirname(__file__), 'templates_ppt', 'logo.png')
     if os.path.exists(logo_path):
         slide.shapes.add_picture(logo_path, Inches(0.5), Inches(0.3), height=Inches(0.8))
 
-    # Título central
     title_box = slide.shapes.add_textbox(Inches(0), Inches(2.5), Inches(10), Inches(2))
     tf = title_box.text_frame
     tf.clear()
     p = tf.paragraphs[0]
-    p.text = f"REPORTE DE VISITA PEDAGÓGICA\n{visita['numero_informe']}"  # ← Correcto
+    p.text = f"REPORTE DE VISITA PEDAGÓGICA\n{visita['numero_informe']}"
     p.font.bold = True
     p.font.size = Pt(28)
-    p.font.color.rgb = RGBColor(0, 51, 102)  # Azul UGEL
+    p.font.color.rgb = RGBColor(0, 51, 102)
     p.alignment = PP_ALIGN.CENTER
 
-    # Subtítulo
     sub_box = slide.shapes.add_textbox(Inches(0), Inches(4.2), Inches(10), Inches(1))
     tf2 = sub_box.text_frame
     tf2.clear()
     p2 = tf2.paragraphs[0]
-    p2.text = f"Institución: {visita['institucion']}\nEspecialista: {visita['observaciones']}\nFecha: {visita['fecha']} | Tipo: {visita['tipo_visita']}"
+    p2.text = f"Institución: {visita['institucion']}\nEspecialista: {visita['especialista_nombre']}\nFecha: {visita['fecha']} | Tipo: {visita['tipo_visita']}"
     p2.font.size = Pt(18)
     p2.font.color.rgb = RGBColor(0, 0, 0)
     p2.alignment = PP_ALIGN.CENTER
 
-    # --- Diapositiva 2: Observaciones ---
+    # --- Diapositiva 2: Observaciones estructuradas ---
     slide2 = prs.slides.add_slide(prs.slide_layouts[6])
-
-    # Título
     title2_box = slide2.shapes.add_textbox(Inches(0.5), Inches(0.5), Inches(9), Inches(0.8))
     tf3 = title2_box.text_frame
     tf3.clear()
     p3 = tf3.paragraphs[0]
-    p3.text = "OBSERVACIONES Y RECOMENDACIONES"
+    p3.text = "OBSERVACIONES ESTRUCTURADAS"
     p3.font.bold = True
     p3.font.size = Pt(22)
     p3.font.color.rgb = RGBColor(0, 51, 102)
 
-    # Contenido
     obs_box = slide2.shapes.add_textbox(Inches(0.5), Inches(1.5), Inches(9), Inches(5))
     tf4 = obs_box.text_frame
     tf4.clear()
     p4 = tf4.paragraphs[0]
-    p4.text = f"Responsable: {visita['observaciones']}\n\n{visita['observaciones'] if visita['observaciones'] else 'Sin observaciones.'}"
-    p4.font.size = Pt(16)
+    p4.text = f"""✅ Fortalezas:\n{visita['fortalezas'] or 'No registradas.'}
+
+⚠️ Áreas de mejora:\n{visita['mejoras'] or 'No registradas.'}
+
+💡 Recomendaciones:\n{visita['recomendaciones'] or 'No registradas.'}
+
+📝 Compromisos:\n{visita['compromisos'] or 'No registrados.'}"""
+    p4.font.size = Pt(14)
     p4.font.color.rgb = RGBColor(0, 0, 0)
 
-    # Guardar en memoria
     filename = f"reporte_visita_{visita_id}.pptx"
     filepath = os.path.join(os.path.dirname(__file__), filename)
     prs.save(filepath)
 
-    # Enviar archivo para descarga
     return send_file(filepath, as_attachment=True)
+    
 from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -383,10 +379,27 @@ def generar_pdf(visita_id):
         story.append(Paragraph(dato, normal_style))
 
     story.append(Spacer(1, 18))
-    story.append(Paragraph("<b>OBSERVACIONES Y RECOMENDACIONES</b>", normal_style))
+    story.append(Paragraph("<b>OBSERVACIONES ESTRUCTURADAS</b>", normal_style))
     story.append(Spacer(1, 6))
-    obs = visita['observaciones'] if visita['observaciones'] else "Sin observaciones registradas."
-    story.append(Paragraph(obs, normal_style))
+
+    # Fortalezas
+    story.append(Paragraph("<b>✅ Fortalezas:</b>", normal_style))
+    story.append(Paragraph(visita['fortalezas'] or "No registradas.", normal_style))
+    story.append(Spacer(1, 6))
+
+    # Áreas de mejora
+    story.append(Paragraph("<b>⚠️ Áreas de mejora:</b>", normal_style))
+    story.append(Paragraph(visita['mejoras'] or "No registradas.", normal_style))
+    story.append(Spacer(1, 6))
+
+    # Recomendaciones
+    story.append(Paragraph("<b>💡 Recomendaciones:</b>", normal_style))
+    story.append(Paragraph(visita['recomendaciones'] or "No registradas.", normal_style))
+    story.append(Spacer(1, 6))
+
+    # Compromisos
+    story.append(Paragraph("<b>📝 Compromisos del docente:</b>", normal_style))
+    story.append(Paragraph(visita['compromisos'] or "No registrados.", normal_style))
 
     story.append(Spacer(1, 36))
     story.append(Paragraph("_____________________________________", normal_style))
@@ -462,14 +475,20 @@ def exportar_excel():
 
     if rol in ['admin', 'jefe']:
         cur.execute("""
-            SELECT v.numero_informe, v.fecha, v.institucion, v.nivel, v.tipo_visita, u.nombre_completo as especialista, v.observaciones
+            SELECT 
+                v.numero_informe, v.fecha, v.institucion, v.nivel, v.tipo_visita,
+                u.nombre_completo as especialista,
+                v.fortalezas, v.mejoras, v.recomendaciones, v.compromisos
             FROM visitas v
             JOIN usuarios u ON v.usuario_id = u.id
             ORDER BY v.id DESC
         """)
     else:
         cur.execute("""
-            SELECT v.numero_informe, v.fecha, v.institucion, v.nivel, v.tipo_visita, u.nombre_completo as especialista, v.observaciones
+            SELECT 
+                v.numero_informe, v.fecha, v.institucion, v.nivel, v.tipo_visita,
+                u.nombre_completo as especialista,
+                v.fortalezas, v.mejoras, v.recomendaciones, v.compromisos
             FROM visitas v
             JOIN usuarios u ON v.usuario_id = u.id
             WHERE v.usuario_id = %s
@@ -483,7 +502,10 @@ def exportar_excel():
     ws = wb.active
     ws.title = "Visitas Pedagógicas"
 
-    headers = ["N° Informe", "Fecha", "Institución", "Nivel", "Tipo de Visita", "Especialista", "Observaciones"]
+    headers = [
+        "N° Informe", "Fecha", "Institución", "Nivel", "Tipo de Visita", "Especialista",
+        "Fortalezas", "Áreas de mejora", "Recomendaciones", "Compromisos"
+    ]
     ws.append(headers)
 
     for visita in visitas:
@@ -494,7 +516,10 @@ def exportar_excel():
             visita['nivel'],
             visita['tipo_visita'],
             visita['especialista'],
-            visita['observaciones']
+            visita['fortalezas'] or "",
+            visita['mejoras'] or "",
+            visita['recomendaciones'] or "",
+            visita['compromisos'] or ""
         ])
 
     for col in ws.columns:
@@ -514,7 +539,7 @@ def exportar_excel():
     wb.save(filepath)
 
     return send_file(filepath, as_attachment=True)
-
+    
 @app.route('/editar_usuario/<int:usuario_id>')
 def editar_usuario(usuario_id):
     if 'rol' not in session or session['rol'] != 'admin':
