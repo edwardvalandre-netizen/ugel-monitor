@@ -174,19 +174,17 @@
         },
         options: { responsive: true }
     });
-</script>
-<<<<<<< HEAD
-<script>
-document.getElementById('filtroMes').addEventListener('change', function() {
-    const mes = this.value;
-    if (mes) {
-        window.location.href = `{{ url_for('dashboard') }}?mes=${mes}`;
-    } else {
-        window.location.href = "{{ url_for('dashboard') }}";
-    }
+
+        // Filtro por mes
+    document.getElementById('filtroMes').addEventListener('change', function() {
+        const mes = this.value;
+        if (mes) {
+            window.location.href = `{{ url_for('dashboard') }}?mes=${mes}`;
+        } else {
+            window.location.href = "{{ url_for('dashboard') }}";
+        }
 });
 </script>
 {% endblock %}
-=======
-{% endblock %}
->>>>>>> 560a39208ba4c42f8b9fcef414a776d2c3b34512
+
+
