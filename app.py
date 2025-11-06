@@ -101,66 +101,64 @@ def dashboard():
     
     user_id = session['user_id']
     rol = session['rol']
-    mes_filtro = request.args.get('mes', '')  # Obtener mes del query string
+    mes_filtro = request.args.get('mes', '')
 
     conn = get_db_connection()
     cur = conn.cursor()
     
-    # Construir la consulta con filtro por mes
-    base_query = "SELECT * FROM visitas"
-    count_query = "SELECT COUNT(*) FROM visitas"
-    where_clause = []
+    # Construir condiciones de filtrado
+    where_conditions = []
     params = []
-
+    
     if mes_filtro:
-        where_clause.append("fecha LIKE %s")
+        where_conditions.append("fecha LIKE %s")
         params.append(f"{mes_filtro}%")
     
     if rol not in ['admin', 'jefe']:
-        where_clause.append("usuario_id = %s")
+        where_conditions.append("usuario_id = %s")
         params.append(user_id)
     
-    if where_clause:
-        base_query += " WHERE " + " AND ".join(where_clause)
-        count_query += " WHERE " + " AND ".join(where_clause)
+    where_clause = " WHERE " + " AND ".join(where_conditions) if where_conditions else ""
     
-    base_query += " ORDER BY id DESC"
-    
-    cur.execute(base_query, params)
+    # Consulta principal: visitas
+    cur.execute(f"SELECT * FROM visitas{where_clause} ORDER BY id DESC", params)
     visitas = cur.fetchall()
     
     # Totales
     total_visitas = len(visitas)
+    visitas_mes = 0
+    porcentaje_meta = 0
     
-    # Visitas este mes (si no hay filtro, usa mes actual)
-    mes_actual = mes_filtro if mes_filtro else datetime.now().strftime("%Y-%m")
-    if where_clause and not mes_filtro:
-        # Si hay filtro pero no por mes, usa el mes actual
-        where_clause.append("fecha LIKE %s")
-        params.append(f"{mes_actual}%")
-    elif not where_clause:
-        params = [f"{mes_actual}%"]
-        count_query = "SELECT COUNT(*) FROM visitas WHERE fecha LIKE %s"
+    if mes_filtro:
+        # Si hay filtro por mes, "Este Mes" = total de ese mes
+        visitas_mes = total_visitas
+    else:
+        # Si no hay filtro, "Este Mes" = visitas del mes actual
+        mes_actual = datetime.now().strftime("%Y-%m")
+        count_params = [f"{mes_actual}%"]
+        if rol not in ['admin', 'jefe']:
+            count_params.append(user_id)
+            cur.execute(f"SELECT COUNT(*) FROM visitas WHERE fecha LIKE %s AND usuario_id = %s", count_params)
+        else:
+            cur.execute(f"SELECT COUNT(*) FROM visitas WHERE fecha LIKE %s", (f"{mes_actual}%",))
+        visitas_mes = cur.fetchone()['count']
     
-    cur.execute(count_query, params)
-    visitas_mes = cur.fetchone()['count']
-    
-    # Calcular porcentaje de meta
     meta_mensual = 30
     porcentaje_meta = (visitas_mes / meta_mensual * 100) if meta_mensual > 0 else 0
 
-    # Conteo por nivel
-    if rol in ['admin', 'jefe']:
-        cur.execute("SELECT nivel, COUNT(*) FROM visitas GROUP BY nivel")
+    # Estadísticas: niveles y tipos (solo con datos filtrados)
+    if where_conditions:
+        nivel_query = f"SELECT nivel, COUNT(*) FROM visitas{where_clause} GROUP BY nivel"
+        tipo_query = f"SELECT tipo_visita, COUNT(*) FROM visitas{where_clause} GROUP BY tipo_visita"
     else:
-        cur.execute("SELECT nivel, COUNT(*) FROM visitas WHERE usuario_id = %s GROUP BY nivel", (user_id,))
-    niveles = dict(cur.fetchall())
+        nivel_query = "SELECT nivel, COUNT(*) FROM visitas GROUP BY nivel"
+        tipo_query = "SELECT tipo_visita, COUNT(*) FROM visitas GROUP BY tipo_visita"
+        params = []
 
-    # Conteo por tipo
-    if rol in ['admin', 'jefe']:
-        cur.execute("SELECT tipo_visita, COUNT(*) FROM visitas GROUP BY tipo_visita")
-    else:
-        cur.execute("SELECT tipo_visita, COUNT(*) FROM visitas WHERE usuario_id = %s GROUP BY tipo_visita", (user_id,))
+    cur.execute(nivel_query, params)
+    niveles = dict(cur.fetchall())
+    
+    cur.execute(tipo_query, params)
     tipos = dict(cur.fetchall())
     
     conn.close()
@@ -171,7 +169,8 @@ def dashboard():
                          visitas_mes=visitas_mes,
                          porcentaje_meta=porcentaje_meta,
                          niveles=niveles,
-                         tipos=tipos)
+                         tipos=tipos,
+                         mes_filtro=mes_filtro)  # Para mantener seleccionado el filtro
 
 
 def generar_numero_informe():
@@ -644,42 +643,56 @@ def generar_informe_mensual(mes):
     conn = get_db_connection()
     cur = conn.cursor()
     
-    # Obtener visitas del mes
-    cur.execute("""
-        SELECT v.*, u.nombre_completo as especialista_nombre
-        FROM visitas v
-        JOIN usuarios u ON v.usuario_id = u.id
-        WHERE v.fecha LIKE %s
-        ORDER BY v.fecha DESC
-    """, (f"{mes}%",))
+    # Obtener visitas
+    if mes == 'todos':
+        cur.execute("""
+            SELECT v.*, u.nombre_completo as especialista_nombre
+            FROM visitas v
+            JOIN usuarios u ON v.usuario_id = u.id
+            ORDER BY v.fecha DESC
+        """)
+    else:
+        cur.execute("""
+            SELECT v.*, u.nombre_completo as especialista_nombre
+            FROM visitas v
+            JOIN usuarios u ON v.usuario_id = u.id
+            WHERE v.fecha LIKE %s
+            ORDER BY v.fecha DESC
+        """, (f"{mes}%",))
+    
     visitas = cur.fetchall()
     
     # Estadísticas
     total = len(visitas)
     if total > 0:
-        # Conteo por nivel
-        cur.execute("""
-            SELECT nivel, COUNT(*) as total_nivel
-            FROM visitas 
-            WHERE fecha LIKE %s 
-            GROUP BY nivel
-        """, (f"{mes}%",))
-        niveles = {row['nivel']: row['total_nivel'] for row in cur.fetchall()}
-    
-        # Conteo por tipo
-        cur.execute("""
-            SELECT tipo_visita, COUNT(*) as total_tipo
-            FROM visitas 
-            WHERE fecha LIKE %s 
-        GROUP BY tipo_visita
-        """, (f"{mes}%",))
-        tipos = {row['tipo_visita']: row['total_tipo'] for row in cur.fetchall()}
+        if mes == 'todos':
+            cur.execute("SELECT nivel, COUNT(*) FROM visitas GROUP BY nivel")
+            niveles = {row['nivel']: row['count'] for row in cur.fetchall()}
+            
+            cur.execute("SELECT tipo_visita, COUNT(*) FROM visitas GROUP BY tipo_visita")
+            tipos = {row['tipo_visita']: row['count'] for row in cur.fetchall()}
+        else:
+            cur.execute("""
+                SELECT nivel, COUNT(*) 
+                FROM visitas 
+                WHERE fecha LIKE %s 
+                GROUP BY nivel
+            """, (f"{mes}%",))
+            niveles = {row['nivel']: row['count'] for row in cur.fetchall()}
+            
+            cur.execute("""
+                SELECT tipo_visita, COUNT(*) 
+                FROM visitas 
+                WHERE fecha LIKE %s 
+                GROUP BY tipo_visita
+            """, (f"{mes}%",))
+            tipos = {row['tipo_visita']: row['count'] for row in cur.fetchall()}
     else:
         niveles = {}
         tipos = {}
     
     conn.close()
-  
+    
     return generar_pdf_informe_mensual(visitas, mes, total, niveles, tipos)
 
 def generar_pdf_informe_mensual(visitas, mes, total, niveles, tipos):
@@ -819,6 +832,35 @@ def verificar_columnas():
     columnas = [row['column_name'] for row in cur.fetchall()]
     conn.close()
     return f"Columnas en 'visitas': {', '.join(columnas)}"
+
+@app.route('/recursos')
+def recursos():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    
+    recursos = [
+        {
+            "nombre": "Rúbricas de Evaluación - Inicial",
+            "descripcion": "Instrumentos para evaluar competencias en educación inicial",
+            "url": "#"
+        },
+        {
+            "nombre": "Guía de Monitoreo Pedagógico 2025",
+            "descripcion": "Protocolo oficial del MINEDU para visitas de monitoreo",
+            "url": "#"
+        },
+        {
+            "nombre": "Modelos de Planes de Mejora",
+            "descripcion": "Plantillas editables para instituciones educativas",
+            "url": "#"
+        },
+        {
+            "nombre": "Normas Técnicas UGEL Lauricocha",
+            "descripcion": "Directivas internas para gestión pedagógica",
+            "url": "#"
+        }
+    ]
+    return render_template('recursos.html', recursos=recursos)
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 10000))
