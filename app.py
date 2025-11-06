@@ -98,42 +98,71 @@ def login():
 def dashboard():
     if 'user_id' not in session:
         return redirect(url_for('login'))
+    
     user_id = session['user_id']
     rol = session['rol']
+    mes_filtro = request.args.get('mes', '')  # Obtener mes del query string
 
     conn = get_db_connection()
     cur = conn.cursor()
     
-    #Filtrar visitas por rol
-    if rol in ['admin', 'jefe']:
-        cur.execute("SELECT * FROM visitas ORDER BY id DESC")
-    else:
-        cur.execute("SELECT * FROM visitas WHERE usuario_id = %s ORDER BY id DESC", (user_id,))
-    visitas = cur.fetchall()
+    # Construir la consulta con filtro por mes
+    base_query = "SELECT * FROM visitas"
+    count_query = "SELECT COUNT(*) FROM visitas"
+    where_clause = []
+    params = []
 
+    if mes_filtro:
+        where_clause.append("fecha LIKE %s")
+        params.append(f"{mes_filtro}%")
+    
+    if rol not in ['admin', 'jefe']:
+        where_clause.append("usuario_id = %s")
+        params.append(user_id)
+    
+    if where_clause:
+        base_query += " WHERE " + " AND ".join(where_clause)
+        count_query += " WHERE " + " AND ".join(where_clause)
+    
+    base_query += " ORDER BY id DESC"
+    
+    cur.execute(base_query, params)
+    visitas = cur.fetchall()
+    
     # Totales
     total_visitas = len(visitas)
-
-    # Visitas este mes
-    mes_actual = datetime.now().strftime("%Y-%m")
-    if rol in ['admin', 'jefe']:
-        cur.execute("SELECT COUNT(*) FROM visitas WHERE fecha LIKE %s", (f"{mes_actual}%",))
-    else:
-        cur.execute("SELECT COUNT(*) FROM visitas WHERE usuario_id = %s AND fecha LIKE %s", (user_id, f"{mes_actual}%",))
+    
+    # Visitas este mes (si no hay filtro, usa mes actual)
+    mes_actual = mes_filtro if mes_filtro else datetime.now().strftime("%Y-%m")
+    if where_clause and not mes_filtro:
+        # Si hay filtro pero no por mes, usa el mes actual
+        where_clause.append("fecha LIKE %s")
+        params.append(f"{mes_actual}%")
+    elif not where_clause:
+        params = [f"{mes_actual}%"]
+        count_query = "SELECT COUNT(*) FROM visitas WHERE fecha LIKE %s"
+    
+    cur.execute(count_query, params)
     visitas_mes = cur.fetchone()['count']
+    
+    # Calcular porcentaje de meta
+    meta_mensual = 30
+    porcentaje_meta = (visitas_mes / meta_mensual * 100) if meta_mensual > 0 else 0
 
     # Conteo por nivel
-    if rol in ['admin', 'jefe']:
-        cur.execute("SELECT nivel, COUNT(*) FROM visitas GROUP BY nivel")
-    else:
-        cur.execute("SELECT nivel, COUNT(*) FROM visitas WHERE usuario_id = %s GROUP BY nivel", (user_id,))
+    nivel_query = "SELECT nivel, COUNT(*) FROM visitas"
+    if where_clause:
+        nivel_query += " WHERE " + " AND ".join(where_clause)
+    nivel_query += " GROUP BY nivel"
+    cur.execute(nivel_query, params if mes_filtro else [f"{mes_actual}%"])
     niveles = dict(cur.fetchall())
 
     # Conteo por tipo
-    if rol in ['admin', 'jefe']:
-        cur.execute("SELECT tipo_visita, COUNT(*) FROM visitas GROUP BY tipo_visita")
-    else:
-        cur.execute("SELECT tipo_visita, COUNT(*) FROM visitas WHERE usuario_id = %s GROUP BY tipo_visita", (user_id,))
+    tipo_query = "SELECT tipo_visita, COUNT(*) FROM visitas"
+    if where_clause:
+        tipo_query += " WHERE " + " AND ".join(where_clause)
+    tipo_query += " GROUP BY tipo_visita"
+    cur.execute(tipo_query, params if mes_filtro else [f"{mes_actual}%"])
     tipos = dict(cur.fetchall())
     
     conn.close()
@@ -142,8 +171,9 @@ def dashboard():
                          visitas=visitas,
                          total_visitas=total_visitas,
                          visitas_mes=visitas_mes,
+                         porcentaje_meta=porcentaje_meta,
                          niveles=niveles,
-                         tipos=tipos)    
+                         tipos=tipos)
 
 
 def generar_numero_informe():

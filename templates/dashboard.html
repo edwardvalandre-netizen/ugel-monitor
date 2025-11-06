@@ -14,6 +14,29 @@
     <a href="{{ url_for('nueva_visita') }}" class="btn btn-success">+ Nueva Visita</a>
 </div>
 
+<!-- Filtro por mes -->
+<div class="row mb-3">
+    <div class="col-md-4">
+        <label for="filtroMes" class="form-label">Filtrar por mes</label>
+        <select id="filtroMes" class="form-select">
+            <option value="">Todos los meses</option>
+            <option value="2025-10">Octubre 2025</option>
+            <option value="2025-11">Noviembre 2025</option>
+            <option value="2025-12">Diciembre 2025</option>
+        </select>
+    </div>
+    <div class="col-md-4 d-flex align-items-end">
+        <a href="{{ url_for('generar_informe_mensual', mes='2025-10') }}" class="btn btn-primary w-100">
+            📄 Informe Octubre
+        </a>
+    </div>
+    <div class="col-md-4 d-flex align-items-end">
+        <a href="{{ url_for('generar_informe_mensual', mes='2025-11') }}" class="btn btn-secondary w-100">
+            📄 Informe Noviembre
+        </a>
+    </div>
+</div>
+
 <!-- Resumen -->
 <div class="row mb-4">
     <div class="col-md-3">
@@ -29,6 +52,15 @@
             <div class="card-body">
                 <h5>Este Mes</h5>
                 <h3>{{ visitas_mes }}</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-white bg-warning">
+            <div class="card-body">
+                <h5>Meta Mensual</h5>
+                <h3>30</h3>
+                <small class="text-dark">({{ '%.0f' | format(porcentaje_meta) }}% alcanzado)</small>
             </div>
         </div>
     </div>
@@ -142,5 +174,15 @@
         },
         options: { responsive: true }
     });
+</script>
+<script>
+document.getElementById('filtroMes').addEventListener('change', function() {
+    const mes = this.value;
+    if (mes) {
+        window.location.href = `{{ url_for('dashboard') }}?mes=${mes}`;
+    } else {
+        window.location.href = "{{ url_for('dashboard') }}";
+    }
+});
 </script>
 {% endblock %}
