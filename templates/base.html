@@ -70,6 +70,12 @@
                 <li><hr class="dropdown-divider"></li>
                 <li><a class="dropdown-item text-danger" href="{{ url_for('logout') }}">Cerrar sesión</a></li>
             </ul>
+            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userMenu">
+                <li><a class="dropdown-item" href="{{ url_for('dashboard') }}">Inicio</a></li>
+                <li><a class="dropdown-item" href="{{ url_for('recursos') }}">📚 Recursos Pedagógicos</a></li>
+                <li><hr class="dropdown-divider"></li>
+                <li><a class="dropdown-item text-danger" href="{{ url_for('logout') }}">Cerrar sesión</a></li>
+            </ul>
         </div>
     {% endif %}
     <button id="themeToggle" class="btn btn-sm btn-outline-light ms-auto me-3">
@@ -159,6 +165,7 @@ toggleButton.addEventListener('click', () => {
     background: rgba(0, 30, 60, 0.85); /* Azul más oscuro */
     color: #fff;
 }
+
 </style>
 </body>
 </html>
