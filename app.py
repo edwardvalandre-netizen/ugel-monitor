@@ -702,31 +702,33 @@ def generar_pdf_informe_mensual(visitas, mes, total, niveles, tipos):
         story.append(im)
         story.append(Spacer(1, 24))
     
-    # Título
-    story.append(Paragraph("<b>INFORME MENSUAL DE MONITOREO PEDAGÓGICO</b>", styles['Title']))
-    story.append(Paragraph(f"<b>Mes: {mes}</b>", styles['Heading2']))
+    # Título institucional
+    story.append(Paragraph("<b>UNIDAD DE GESTIÓN EDUCATIVA LOCAL LAURICOCHA</b>", styles['Title']))
+    story.append(Paragraph("<b>ÁREA DE GESTIÓN PEDAGÓGICA</b>", styles['Heading2']))
+    story.append(Spacer(1, 12))
+    
+    # Título del informe
+    story.append(Paragraph(f"<b>INFORME MENSUAL DE MONITOREO PEDAGÓGICO - {mes}</b>", styles['Heading1']))
     story.append(Spacer(1, 12))
     
     # Resumen estadístico
-    story.append(Paragraph("<b>Resumen Estadístico</b>", styles['Heading3']))
-    story.append(Paragraph(f"Total de visitas: {total}", styles['Normal']))
-
+    story.append(Paragraph("<b>RESUMEN ESTADÍSTICO</b>", styles['Heading3']))
+    story.append(Paragraph(f"Total de visitas realizadas: {total}", styles['Normal']))
+    
     if niveles:
-        niveles_str = ", ".join([f"{nivel}: {cantidad}" for nivel, cantidad in niveles.items()])
+        niveles_str = ", ".join([f"{k}: {v}" for k, v in niveles.items()])
         story.append(Paragraph(f"Visitas por nivel: {niveles_str}", styles['Normal']))
-    else:
-        story.append(Paragraph("Visitas por nivel: No hay datos", styles['Normal']))
-
+    
     if tipos:
-        tipos_str = ", ".join([f"{tipo}: {cantidad}" for tipo, cantidad in tipos.items()])
+        tipos_str = ", ".join([f"{k}: {v}" for k, v in tipos.items()])
         story.append(Paragraph(f"Visitas por tipo: {tipos_str}", styles['Normal']))
-    else:
-        story.append(Paragraph("Visitas por tipo: No hay datos", styles['Normal']))
-        
-    # Tabla de visitas
+    
+    story.append(Spacer(1, 18))
+    
+    # Tabla detallada con observaciones estructuradas
     if visitas:
-        story.append(Paragraph("<b>Detalle de Visitas</b>", styles['Heading3']))
-        data = [["N° Informe", "Fecha", "Institución", "Nivel", "Tipo", "Especialista"]]
+        story.append(Paragraph("<b>DETALLE DE VISITAS</b>", styles['Heading3']))
+        data = [["N° Informe", "Fecha", "Institución", "Nivel", "Tipo", "Especialista", "Fortalezas", "Áreas de Mejora"]]
         for v in visitas:
             data.append([
                 v['numero_informe'],
@@ -734,29 +736,58 @@ def generar_pdf_informe_mensual(visitas, mes, total, niveles, tipos):
                 v['institucion'],
                 v['nivel'],
                 v['tipo_visita'],
-                v['especialista_nombre']
+                v['especialista_nombre'],
+                (v['fortalezas'] or "N/A")[:50] + ("..." if v['fortalezas'] and len(v['fortalezas']) > 50 else ""),
+                (v['mejoras'] or "N/A")[:50] + ("..." if v['mejoras'] and len(v['mejoras']) > 50 else "")
             ])
         
-        table = Table(data)
+        table = Table(data, colWidths=[60, 60, 80, 50, 70, 80, 100, 100])
         table.setStyle(TableStyle([
             ('BACKGROUND', (0,0), (-1,0), colors.gray),
             ('TEXTCOLOR', (0,0), (-1,0), colors.whitesmoke),
             ('ALIGN', (0,0), (-1,-1), 'CENTER'),
             ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0,0), (-1,0), 10),
+            ('FONTSIZE', (0,0), (-1,0), 8),
             ('BOTTOMPADDING', (0,0), (-1,0), 12),
-            ('GRID', (0,0), (-1,-1), 1, colors.black)
+            ('GRID', (0,0), (-1,-1), 1, colors.black),
+            ('VALIGN', (0,0), (-1,-1), 'TOP')
         ]))
         story.append(table)
-    else:
-        story.append(Paragraph("No se registraron visitas en este mes.", styles['Normal']))
+    
+    story.append(Spacer(1, 24))
+    story.append(Paragraph("<b>OBSERVACIONES ESTRUCTURADAS COMPLETAS</b>", styles['Heading3']))
+    
+    for v in visitas:
+        story.append(Spacer(1, 12))
+        story.append(Paragraph(f"<b>{v['numero_informe']} - {v['institucion']}</b>", styles['Heading4']))
+        
+        # Fortalezas
+        story.append(Paragraph("<b>✅ Fortalezas:</b>", styles['Normal']))
+        story.append(Paragraph(v['fortalezas'] or "No registradas.", styles['Normal']))
+        story.append(Spacer(1, 6))
+        
+        # Áreas de mejora
+        story.append(Paragraph("<b>⚠️ Áreas de mejora:</b>", styles['Normal']))
+        story.append(Paragraph(v['mejoras'] or "No registradas.", styles['Normal']))
+        story.append(Spacer(1, 6))
+        
+        # Recomendaciones
+        story.append(Paragraph("<b>💡 Recomendaciones:</b>", styles['Normal']))
+        story.append(Paragraph(v['recomendaciones'] or "No registradas.", styles['Normal']))
+        story.append(Spacer(1, 6))
+        
+        # Compromisos
+        story.append(Paragraph("<b>📝 Compromisos del docente:</b>", styles['Normal']))
+        story.append(Paragraph(v['compromisos'] or "No registrados.", styles['Normal']))
     
     story.append(Spacer(1, 36))
     story.append(Paragraph("_____________________________________", styles['Normal']))
     story.append(Paragraph("Firma del Jefe del Área de Gestión Pedagógica", styles['Normal']))
+    story.append(Paragraph("UGEL Lauricocha", styles['Normal']))
     
     doc.build(story)
     return send_file(filepath, as_attachment=True)
+
 @app.route('/logout')
 def logout():
     session.clear()  # Elimina toda la sesión
