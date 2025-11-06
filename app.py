@@ -150,19 +150,17 @@ def dashboard():
     porcentaje_meta = (visitas_mes / meta_mensual * 100) if meta_mensual > 0 else 0
 
     # Conteo por nivel
-    nivel_query = "SELECT nivel, COUNT(*) FROM visitas"
-    if where_clause:
-        nivel_query += " WHERE " + " AND ".join(where_clause)
-    nivel_query += " GROUP BY nivel"
-    cur.execute(nivel_query, params if mes_filtro else [f"{mes_actual}%"])
+    if rol in ['admin', 'jefe']:
+        cur.execute("SELECT nivel, COUNT(*) FROM visitas GROUP BY nivel")
+    else:
+        cur.execute("SELECT nivel, COUNT(*) FROM visitas WHERE usuario_id = %s GROUP BY nivel", (user_id,))
     niveles = dict(cur.fetchall())
 
     # Conteo por tipo
-    tipo_query = "SELECT tipo_visita, COUNT(*) FROM visitas"
-    if where_clause:
-        tipo_query += " WHERE " + " AND ".join(where_clause)
-    tipo_query += " GROUP BY tipo_visita"
-    cur.execute(tipo_query, params if mes_filtro else [f"{mes_actual}%"])
+    if rol in ['admin', 'jefe']:
+        cur.execute("SELECT tipo_visita, COUNT(*) FROM visitas GROUP BY tipo_visita")
+    else:
+        cur.execute("SELECT tipo_visita, COUNT(*) FROM visitas WHERE usuario_id = %s GROUP BY tipo_visita", (user_id,))
     tipos = dict(cur.fetchall())
     
     conn.close()
