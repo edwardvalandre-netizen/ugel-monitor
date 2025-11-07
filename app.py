@@ -448,7 +448,7 @@ def generar_pdf(visita_id):
     return send_file(filepath, as_attachment=True)
     
 
-    
+from openpyxl.styles import Alignment    
 from openpyxl import Workbook
 from flask import send_file
 import os
@@ -575,7 +575,7 @@ def exportar_excel():
         # Aplicar wrap_text a todas las celdas de la columna
         for cell in col:
             if cell.row > 1:  # No aplicar a encabezados
-                cell.alignment = Alignmex   nt(wrap_text=True)
+                cell.alignment = Alignment(wrap_text=True)
 
     filename = "visitas_pedagogicas.xlsx"
     filepath = os.path.join(os.path.dirname(__file__), filename)
