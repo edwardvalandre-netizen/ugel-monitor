@@ -757,8 +757,7 @@ def generar_pdf_informe_mensual(visitas, mes, total, niveles, tipos):
                 v['nivel'],
                 v['tipo_visita'],
                 v['especialista_nombre'],
-                (v['fortalezas'] or "N/A")[:50] + ("..." if v['fortalezas'] and len(v['fortalezas']) > 50 else ""),
-                (v['mejoras'] or "N/A")[:50] + ("..." if v['mejoras'] and len(v['mejoras']) > 50 else "")
+
             ])
         
         table = Table(data, colWidths=[60, 60, 80, 50, 70, 80, 100, 100])
