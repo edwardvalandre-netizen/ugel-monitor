@@ -556,17 +556,24 @@ def exportar_excel():
             visita['compromisos'] or ""
         ])
 
+    # Ajustar ancho de columnas y aplicar wrap_text
     for col in ws.columns:
         max_length = 0
         column = col[0].column_letter
         for cell in col:
             try:
-                if len(str(cell.value)) > max_length:
-                    max_length = len(str(cell.value))
+                if cell.value is not None:
+                    max_length = max(max_length, len(str(cell.value)))
             except:
                 pass
-        adjusted_width = (max_length + 2)
+        # Aumentar el ancho mínimo y aplicar wrap_text
+        adjusted_width = max(max_length + 2, 15)  # Ancho mínimo de 15
         ws.column_dimensions[column].width = min(adjusted_width, 50)
+        
+        # Aplicar wrap_text a todas las celdas de la columna
+        for cell in col:
+            if cell.row > 1:  # No aplicar a encabezados
+                cell.alignment = Alignment(wrap_text=True)
 
     filename = "visitas_pedagogicas.xlsx"
     filepath = os.path.join(os.path.dirname(__file__), filename)
