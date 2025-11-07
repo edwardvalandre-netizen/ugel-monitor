@@ -756,14 +756,15 @@ def generar_pdf_informe_mensual(visitas, mes, total, niveles, tipos):
     if visitas:
         story.append(Paragraph("<b>DETALLE DE VISITAS</b>", styles['Heading3']))
         data = [["N° Informe", "Fecha", "Institución", "Nivel", "Tipo", "Especialista"]]
-        for v in visitas:
-            data.append([
-            v['numero_informe'],
-            v['fecha'],
-            v['institucion'],
-            v['nivel'],
-            v['tipo_visita'],
-            v['especialista_nombre']
+    for v in visitas:
+        # Usar Paragraph para cada celda → permite wrap text y ajuste de fuente
+        data.append([
+            Paragraph(v['numero_informe'], styles['Normal']),
+            Paragraph(v['fecha'], styles['Normal']),
+            Paragraph(v['institucion'], styles['Normal']),
+            Paragraph(v['nivel'], styles['Normal']),
+            Paragraph(v['tipo_visita'], styles['Normal']),
+            Paragraph(v['especialista_nombre'], styles['Normal'])
         ])
     
     table = Table(data, colWidths=[60, 80, 100, 50, 70, 80])
@@ -775,8 +776,8 @@ def generar_pdf_informe_mensual(visitas, mes, total, niveles, tipos):
         ('FONTSIZE', (0,0), (-1,0), 8),
         ('BOTTOMPADDING', (0,0), (-1,0), 12),
         ('GRID', (0,0), (-1,-1), 1, colors.black),
-        ('VALIGN', (0,0), (-1,-1), 'TOP'),  # Alineación vertical
-        ('WORDWRAP', (0,0), (-1,-1), True)   # ¡Aplica wrap text!
+        ('VALIGN', (0,0), (-1,-1), 'TOP'),
+        ('WORDWRAP', (0,0), (-1,-1), True)
     ]))
     story.append(table)
         
