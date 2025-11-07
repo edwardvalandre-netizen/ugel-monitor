@@ -5,6 +5,8 @@ import psycopg2
 from psycopg2.extras import RealDictCursor
 from datetime import datetime
 from flask import make_response
+from flask import ..., abort
+
 db_initialized = False
 
 app = Flask(__name__)
@@ -573,7 +575,7 @@ def exportar_excel():
         # Aplicar wrap_text a todas las celdas de la columna
         for cell in col:
             if cell.row > 1:  # No aplicar a encabezados
-                cell.alignment = Alignment(wrap_text=True)
+                cell.alignment = Alignmex   nt(wrap_text=True)
 
     filename = "visitas_pedagogicas.xlsx"
     filepath = os.path.join(os.path.dirname(__file__), filename)
@@ -853,30 +855,38 @@ def recursos():
     if 'user_id' not in session:
         return redirect(url_for('login'))
     
-    recursos = [
-        {
-            "nombre": "Rúbricas de Evaluación - Inicial",
-            "descripcion": "Instrumentos para evaluar competencias en educación inicial",
-            "url": "#"
-        },
-        {
-            "nombre": "Guía de Monitoreo Pedagógico 2025",
-            "descripcion": "Protocolo oficial del MINEDU para visitas de monitoreo",
-            "url": "#"
-        },
-        {
-            "nombre": "Modelos de Planes de Mejora",
-            "descripcion": "Plantillas editables para instituciones educativas",
-            "url": "#"
-        },
-        {
-            "nombre": "Normas Técnicas UGEL Lauricocha",
-            "descripcion": "Directivas internas para gestión pedagógica",
-            "url": "#"
-        }
-    ]
+    # Definir recursos disponibles
+    recursos = {
+        'rúbricas': [
+            {'nombre': 'Rúbrica de Evaluación - Inicial', 'archivo': 'rubrica_inicial.pdf'},
+            {'nombre': 'Rúbrica de Evaluación - Primaria', 'archivo': 'rubrica_primaria.pdf'},
+        ],
+        'guías': [
+            {'nombre': 'Guía de Monitoreo Pedagógico 2025', 'archivo': 'guia_monitoreo_2025.pdf'},
+        ],
+        'planes': [
+            {'nombre': 'Modelo de Plan de Mejora', 'archivo': 'plan_mejora_modelo.docx'},
+        ],
+        'normas': [
+            {'nombre': 'Directiva UGEL Lauricocha', 'archivo': 'directiva_ugel_lauricocha.pdf'},
+        ]
+    }
     return render_template('recursos.html', recursos=recursos)
 
+@app.route('/recursos/<categoria>/<archivo>')
+def descargar_recurso(categoria, archivo):
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    
+    # Asegurar que la categoría y el archivo sean válidos
+    categorias_validas = ['rúbricas', 'guias', 'planes', 'normas']
+    if categoria not in categorias_validas:
+        abort(404)
+    
+    try:
+        return send_file(f"recursos/{categoria}/{archivo}", as_attachment=True)
+    except FileNotFoundError:
+        abort(404)
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 10000))
