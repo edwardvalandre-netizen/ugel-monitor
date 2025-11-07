@@ -752,33 +752,34 @@ def generar_pdf_informe_mensual(visitas, mes, total, niveles, tipos):
     
     story.append(Spacer(1, 18))
     
-    # Tabla detallada con observaciones estructuradas
+    # Tabla detallada
     if visitas:
         story.append(Paragraph("<b>DETALLE DE VISITAS</b>", styles['Heading3']))
         data = [["N° Informe", "Fecha", "Institución", "Nivel", "Tipo", "Especialista"]]
         for v in visitas:
             data.append([
-                v['numero_informe'],
-                v['fecha'],
-                v['institucion'],
-                v['nivel'],
-                v['tipo_visita'],
-                v['especialista_nombre'],
-
-            ])
+            v['numero_informe'],
+            v['fecha'],
+            v['institucion'],
+            v['nivel'],
+            v['tipo_visita'],
+            v['especialista_nombre']
+        ])
+    
+    table = Table(data, colWidths=[60, 80, 100, 50, 70, 80])
+    table.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,0), colors.gray),
+        ('TEXTCOLOR', (0,0), (-1,0), colors.whitesmoke),
+        ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+        ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0,0), (-1,0), 8),
+        ('BOTTOMPADDING', (0,0), (-1,0), 12),
+        ('GRID', (0,0), (-1,-1), 1, colors.black),
+        ('VALIGN', (0,0), (-1,-1), 'TOP'),  # Alineación vertical
+        ('WORDWRAP', (0,0), (-1,-1), True)   # ¡Aplica wrap text!
+    ]))
+    story.append(table)
         
-        table = Table(data, colWidths=[60, 60, 80, 50, 70, 80, 100, 100])
-        table.setStyle(TableStyle([
-            ('BACKGROUND', (0,0), (-1,0), colors.gray),
-            ('TEXTCOLOR', (0,0), (-1,0), colors.whitesmoke),
-            ('ALIGN', (0,0), (-1,-1), 'CENTER'),
-            ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0,0), (-1,0), 8),
-            ('BOTTOMPADDING', (0,0), (-1,0), 12),
-            ('GRID', (0,0), (-1,-1), 1, colors.black),
-            ('VALIGN', (0,0), (-1,-1), 'TOP')
-        ]))
-        story.append(table)
     
     story.append(Spacer(1, 24))
     story.append(Paragraph("<b>OBSERVACIONES ESTRUCTURADAS COMPLETAS</b>", styles['Heading3']))
