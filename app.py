@@ -194,16 +194,23 @@ def nueva_visita():
         institucion = request.form['institucion']
         nivel = request.form['nivel']
         tipo = request.form['tipo']
-        especialista = session['nombre'] # Usa el nombre del usuario logueado
-        observaciones = request.form['observaciones']
+        fortalezas = request.form['fortalezas']
+        mejoras = request.form['mejoras']
+        recomendaciones = request.form['recomendaciones']
+        compromisos = request.form.get('compromisos', '')  # Opcional
 
         conn = get_db_connection()
         cur = conn.cursor()
         numero_informe = generar_numero_informe()
         cur.execute('''
-            INSERT INTO visitas (usuario_id, numero_informe, fecha, institucion, nivel, tipo_visita, observaciones)
-            VALUES (%s, %s, %s, %s, %s, %s, %s)
-        ''', (user_id, numero_informe, fecha, institucion, nivel, tipo, observaciones))
+            INSERT INTO visitas (
+                usuario_id, numero_informe, fecha, institucion, nivel, tipo_visita,
+                fortalezas, mejoras, recomendaciones, compromisos
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        ''', (
+            user_id, numero_informe, fecha, institucion, nivel, tipo,
+            fortalezas, mejoras, recomendaciones, compromisos
+        ))
         conn.commit()
         conn.close()
         flash('Visita registrada con éxito')
@@ -861,6 +868,7 @@ def recursos():
         }
     ]
     return render_template('recursos.html', recursos=recursos)
+
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 10000))
