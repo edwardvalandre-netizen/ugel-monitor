@@ -748,7 +748,7 @@ def generar_pdf_informe_mensual(visitas, mes, total, niveles, tipos):
     # Tabla detallada con observaciones estructuradas
     if visitas:
         story.append(Paragraph("<b>DETALLE DE VISITAS</b>", styles['Heading3']))
-        data = [["N° Informe", "Fecha", "Institución", "Nivel", "Tipo", "Especialista", "Fortalezas", "Áreas de Mejora"]]
+        data = [["N° Informe", "Fecha", "Institución", "Nivel", "Tipo", "Especialista"]]
         for v in visitas:
             data.append([
                 v['numero_informe'],
