@@ -855,20 +855,59 @@ def recursos():
     if 'user_id' not in session:
         return redirect(url_for('login'))
     
-    # Definir recursos disponibles
     recursos = {
         'rúbricas': [
-            {'nombre': 'Rúbrica de Evaluación - Inicial', 'archivo': 'rubrica_inicial.pdf'},
-            {'nombre': 'Rúbrica de Evaluación - Primaria', 'archivo': 'rubrica_primaria.pdf'},
+            {
+                'nombre': 'Rúbrica de Evaluación - Inicial',
+                'descripcion': 'Instrumento para evaluar competencias en comunicación y matemática.',
+                'archivo': 'rubrica_inicial.pdf'
+            },
+            {
+                'nombre': 'Rúbrica de Evaluación - Primaria',
+                'descripcion': 'Evaluación de desempeños en áreas curriculares según el CNEB.',
+                'archivo': 'rubrica_primaria.pdf'
+            },
+            {
+                'nombre': 'Rúbrica de Evaluación - Secundaria',
+                'descripcion': 'Enfoque en competencias ciudadanas y científico-tecnológicas.',
+                'archivo': 'rubrica_secundaria.pdf'
+            }
         ],
         'guías': [
-            {'nombre': 'Guía de Monitoreo Pedagógico 2025', 'archivo': 'guia_monitoreo_2025.pdf'},
+            {
+                'nombre': 'Guía de Monitoreo Pedagógico 2025',
+                'descripcion': 'Protocolo oficial del MINEDU para visitas de monitoreo y asesoría.',
+                'archivo': 'guia_monitoreo_2025.pdf'
+            },
+            {
+                'nombre': 'Protocolo de Observación de Aula',
+                'descripcion': 'Registro estructurado de prácticas pedagógicas efectivas.',
+                'archivo': 'protocolo_observacion.pdf'
+            }
         ],
         'planes': [
-            {'nombre': 'Modelo de Plan de Mejora', 'archivo': 'plan_mejora_modelo.docx'},
+            {
+                'nombre': 'Modelo de Plan de Mejora Institucional',
+                'descripcion': 'Plantilla editable para instituciones educativas (Word).',
+                'archivo': 'plan_mejora_modelo.docx'
+            },
+            {
+                'nombre': 'Formato de Compromisos de Gestión Escolar',
+                'descripcion': 'Seguimiento a metas del Proyecto Educativo Institucional.',
+                'archivo': 'compromisos_gestion.pdf'
+            }
         ],
         'normas': [
-            {'nombre': 'Directiva UGEL Lauricocha', 'archivo': 'directiva_ugel_lauricocha.pdf'},
+            {
+                'nombre': 'Directiva UGEL Lauricocha N° 001-2025',
+                'descripcion': 'Lineamientos para el monitoreo pedagógico en zonas rurales.',
+                'archivo': 'directiva_ugel_lauricocha.pdf'
+            },
+            {
+                'nombre': 'Resolución Ministerial N° 123-2025-MINEDU',
+                'descripcion': 'Normas para la evaluación del aprendizaje en educación básica.',
+                'archivo': 'resolucion_minedu.pdf'
+            }
         ]
     }
     return render_template('recursos.html', recursos=recursos)
