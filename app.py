@@ -842,31 +842,6 @@ def descargar_recurso(categoria, archivo):
     except FileNotFoundError:
         abort(404)
 
-@app.route('/migrar_activo_2025')
-def migrar_activo_2025():
-    # Protección: solo si hay sesión y es admin
-    if 'user_id' not in session or session.get('rol') != 'admin':
-        return "Acceso denegado. Inicia sesión como admin.", 403
-    
-    conn = get_db_connection()
-    cur = conn.cursor()
-    try:
-        # Añadir columna 'activo' si no existe
-        cur.execute("ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS activo BOOLEAN DEFAULT TRUE")
-        # Asegurar que todos los usuarios existentes estén activos
-        cur.execute("UPDATE usuarios SET activo = TRUE WHERE activo IS NULL OR activo != TRUE")
-        conn.commit()
-        return """
-        <h2>✅ ¡Migración completada!</h2>
-        <p>Columna 'activo' añadida y todos los usuarios activados.</p>
-        <p><b>Recomendación:</b> Elimina esta ruta del código y haz un nuevo push a Git.</p>
-        """
-    except Exception as e:
-        conn.rollback()
-        return f"<h2>❌ Error:</h2><pre>{str(e)}</pre>"
-    finally:
-        conn.close()
-        
 # --- Inicialización ---
 if __name__ == '__main__':
     init_db()  # Asegura que la DB esté lista al iniciar
