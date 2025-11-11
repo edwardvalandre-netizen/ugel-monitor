@@ -1,13 +1,20 @@
 from werkzeug.security import generate_password_hash, check_password_hash
-from flask import Flask, render_template, request, redirect, url_for, flash, session
+from flask import Flask, render_template, request, redirect, url_for, flash, session, make_response, abort, send_file
 import os
 import psycopg2
 from psycopg2.extras import RealDictCursor
 from datetime import datetime
-from flask import make_response
-from flask import Flask, render_template, request, redirect, url_for, flash, session, abort
-
-db_initialized = False
+from pptx import Presentation
+from pptx.util import Inches, Pt
+from pptx.dml.color import RGBColor
+from pptx.enum.text import PP_ALIGN
+from reportlab.lib.pagesizes import letter
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image, Table, TableStyle
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.colors import Color
+from reportlab.lib.enums import TA_CENTER, TA_LEFT
+from openpyxl import Workbook
+from openpyxl.styles import Alignment
 
 app = Flask(__name__)
 app.secret_key = "ugel_lauricocha_2025"
@@ -32,6 +39,7 @@ def init_db():
             contrasena TEXT NOT NULL,
             nombre_completo TEXT,
             rol TEXT NOT NULL CHECK (rol IN ('especialista', 'jefe', 'admin')),
+            activo BOOLEAN DEFAULT TRUE,
             creado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
@@ -45,21 +53,24 @@ def init_db():
             institucion TEXT,
             nivel TEXT,
             tipo_visita TEXT,
-            observaciones TEXT,
+            fortalezas TEXT,
+            mejoras TEXT,
+            recomendaciones TEXT,
+            compromisos TEXT,
             creado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
-    # Usuario administrador
+    # Usuario administrador (con contraseña hasheada)
+    admin_pass = generate_password_hash('123456')
     cur.execute('''
-        INSERT INTO usuarios (usuario, contrasena, nombre_completo, rol)
-        VALUES (%s, %s, %s, %s)
+        INSERT INTO usuarios (usuario, contrasena, nombre_completo, rol, activo)
+        VALUES (%s, %s, %s, %s, %s)
         ON CONFLICT (usuario) DO NOTHING
-    ''', ('admin', '123456', 'Administrador', 'admin'))
+    ''', ('admin', admin_pass, 'Administrador', 'admin', True))
     
     conn.commit()
     cur.close()
     conn.close()
-
 
 @app.route('/')
 def index():
@@ -76,7 +87,6 @@ def login():
         user = cur.fetchone()
         conn.close()
         
-        # Validar SOLO si user existe y está activo
         if user and user['activo'] and check_password_hash(user['contrasena'], contrasena):
             session['user_id'] = user['id']
             session['rol'] = user['rol']
@@ -85,11 +95,7 @@ def login():
         else:
             flash('Usuario inactivo o credenciales incorrectos')
     
-    # Si es GET o el login falló, muestra el formulario
-    return render_template('login.html')
-
-    # Desactivar caché
-    
+    # Respuesta sin caché
     resp = make_response(render_template('login.html'))
     resp.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
     resp.headers["Pragma"] = "no-cache"
@@ -121,46 +127,39 @@ def dashboard():
         params.append(user_id)
     
     where_clause = " WHERE " + " AND ".join(where_conditions) if where_conditions else ""
-    
-    # Consulta principal: visitas
-    cur.execute(f"SELECT * FROM visitas{where_clause} ORDER BY id DESC", params)
+    query = "SELECT * FROM visitas" + where_clause + " ORDER BY id DESC"
+    cur.execute(query, params)
     visitas = cur.fetchall()
     
     # Totales
     total_visitas = len(visitas)
     visitas_mes = 0
     porcentaje_meta = 0
-    
+
     if mes_filtro:
-        # Si hay filtro por mes, "Este Mes" = total de ese mes
         visitas_mes = total_visitas
     else:
-        # Si no hay filtro, "Este Mes" = visitas del mes actual
         mes_actual = datetime.now().strftime("%Y-%m")
         count_params = [f"{mes_actual}%"]
         if rol not in ['admin', 'jefe']:
-            count_params.append(user_id)
-            cur.execute(f"SELECT COUNT(*) FROM visitas WHERE fecha LIKE %s AND usuario_id = %s", count_params)
+            cur.execute("SELECT COUNT(*) FROM visitas WHERE fecha LIKE %s AND usuario_id = %s", count_params + [user_id])
         else:
-            cur.execute(f"SELECT COUNT(*) FROM visitas WHERE fecha LIKE %s", (f"{mes_actual}%",))
+            cur.execute("SELECT COUNT(*) FROM visitas WHERE fecha LIKE %s", (f"{mes_actual}%",))
         visitas_mes = cur.fetchone()['count']
     
     meta_mensual = 30
     porcentaje_meta = (visitas_mes / meta_mensual * 100) if meta_mensual > 0 else 0
 
-    # Estadísticas: niveles y tipos (solo con datos filtrados)
-    if where_conditions:
-        nivel_query = f"SELECT nivel, COUNT(*) FROM visitas{where_clause} GROUP BY nivel"
-        tipo_query = f"SELECT tipo_visita, COUNT(*) FROM visitas{where_clause} GROUP BY tipo_visita"
-    else:
-        nivel_query = "SELECT nivel, COUNT(*) FROM visitas GROUP BY nivel"
-        tipo_query = "SELECT tipo_visita, COUNT(*) FROM visitas GROUP BY tipo_visita"
-        params = []
+    # Estadísticas
+    nivel_params = params.copy()
+    tipo_params = params.copy()
+    nivel_query = "SELECT nivel, COUNT(*) FROM visitas" + where_clause + " GROUP BY nivel"
+    tipo_query = "SELECT tipo_visita, COUNT(*) FROM visitas" + where_clause + " GROUP BY tipo_visita"
 
-    cur.execute(nivel_query, params)
+    cur.execute(nivel_query, nivel_params)
     niveles = dict(cur.fetchall())
     
-    cur.execute(tipo_query, params)
+    cur.execute(tipo_query, tipo_params)
     tipos = dict(cur.fetchall())
     
     conn.close()
@@ -172,18 +171,17 @@ def dashboard():
                          porcentaje_meta=porcentaje_meta,
                          niveles=niveles,
                          tipos=tipos,
-                         mes_filtro=mes_filtro)  # Para mantener seleccionado el filtro
-
+                         mes_filtro=mes_filtro)
 
 def generar_numero_informe():
-    """Genera un número de informe único: INF-2025-001, INF-2025-002, etc."""
+    """Genera un número de informe único: INF-2025-001, etc., usando el último ID."""
     conn = get_db_connection()
     cur = conn.cursor()
-    cur.execute("SELECT COUNT(*) FROM visitas")
-    count = cur.fetchone()['count'] + 1
+    cur.execute("SELECT COALESCE(MAX(id), 0) FROM visitas")
+    last_id = cur.fetchone()['coalesce'] + 1
     conn.close()
     año = datetime.now().year
-    return f"INF-{año}-{count:03d}"
+    return f"INF-{año}-{last_id:03d}"
 
 @app.route('/nueva_visita', methods=['GET', 'POST'])
 def nueva_visita():
@@ -199,7 +197,7 @@ def nueva_visita():
         fortalezas = request.form['fortalezas']
         mejoras = request.form['mejoras']
         recomendaciones = request.form['recomendaciones']
-        compromisos = request.form.get('compromisos', '')  # Opcional
+        compromisos = request.form.get('compromisos', '')
 
         conn = get_db_connection()
         cur = conn.cursor()
@@ -219,12 +217,7 @@ def nueva_visita():
         return redirect(url_for('dashboard'))
     return render_template('nueva_visita.html')
 
-from pptx import Presentation
-from pptx.util import Inches, Pt
-from pptx.dml.color import RGBColor
-from pptx.enum.text import PP_ALIGN
-import os
-from flask import send_file
+# === Rutas de generación de informes (PPTX, PDF, Excel) ===
 
 @app.route('/generar_ppt/<int:visita_id>')
 def generar_ppt(visita_id):
@@ -263,7 +256,6 @@ def generar_ppt(visita_id):
     prs.slide_width = Inches(10)
     prs.slide_height = Inches(7.5)
 
-    # --- Diapositiva 1: Portada ---
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     logo_path = os.path.join(os.path.dirname(__file__), 'templates_ppt', 'logo.png')
     if os.path.exists(logo_path):
@@ -288,7 +280,6 @@ def generar_ppt(visita_id):
     p2.font.color.rgb = RGBColor(0, 0, 0)
     p2.alignment = PP_ALIGN.CENTER
 
-    # --- Diapositiva 2: Observaciones estructuradas ---
     slide2 = prs.slides.add_slide(prs.slide_layouts[6])
     title2_box = slide2.shapes.add_textbox(Inches(0.5), Inches(0.5), Inches(9), Inches(0.8))
     tf3 = title2_box.text_frame
@@ -318,17 +309,6 @@ def generar_ppt(visita_id):
     prs.save(filepath)
 
     return send_file(filepath, as_attachment=True)
-    
-from reportlab.lib.pagesizes import letter
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.units import inch
-from reportlab.lib.colors import Color
-from reportlab.pdfbase.ttfonts import TTFont
-from reportlab.pdfbase import pdfmetrics
-from reportlab.lib.enums import TA_CENTER, TA_LEFT
-import os
-from flask import send_file
 
 @app.route('/generar_pdf/<int:visita_id>')
 def generar_pdf(visita_id):
@@ -399,7 +379,6 @@ def generar_pdf(visita_id):
 
     story.append(Paragraph("INFORME DE VISITA PEDAGÓGICA", title_style))
     story.append(Spacer(1, 12))
-
     story.append(Paragraph(f"<b>Número de Informe:</b> {visita['numero_informe']}", normal_style))
     story.append(Spacer(1, 12))
 
@@ -418,22 +397,18 @@ def generar_pdf(visita_id):
     story.append(Paragraph("<b>OBSERVACIONES ESTRUCTURADAS</b>", normal_style))
     story.append(Spacer(1, 6))
 
-    # Fortalezas
     story.append(Paragraph("<b>✅ Fortalezas:</b>", normal_style))
     story.append(Paragraph(visita['fortalezas'] or "No registradas.", normal_style))
     story.append(Spacer(1, 6))
 
-    # Áreas de mejora
     story.append(Paragraph("<b>⚠️ Áreas de mejora:</b>", normal_style))
     story.append(Paragraph(visita['mejoras'] or "No registradas.", normal_style))
     story.append(Spacer(1, 6))
 
-    # Recomendaciones
     story.append(Paragraph("<b>💡 Recomendaciones:</b>", normal_style))
     story.append(Paragraph(visita['recomendaciones'] or "No registradas.", normal_style))
     story.append(Spacer(1, 6))
 
-    # Compromisos
     story.append(Paragraph("<b>📝 Compromisos del docente:</b>", normal_style))
     story.append(Paragraph(visita['compromisos'] or "No registrados.", normal_style))
 
@@ -446,12 +421,6 @@ def generar_pdf(visita_id):
 
     doc.build(story)
     return send_file(filepath, as_attachment=True)
-    
-
-from openpyxl.styles import Alignment    
-from openpyxl import Workbook
-from flask import send_file
-import os
 
 @app.route('/gestion_usuarios')
 def gestion_usuarios():
@@ -466,8 +435,6 @@ def gestion_usuarios():
     conn.close()
     return render_template('gestion_usuarios.html', usuarios=usuarios)
 
-
-
 @app.route('/crear_usuario', methods=['POST'])
 def crear_usuario():
     if 'rol' not in session or session['rol'] != 'admin':
@@ -479,16 +446,15 @@ def crear_usuario():
     nombre_completo = request.form['nombre_completo']
     rol = request.form['rol']
     
-    # Hashear la contraseña
     contrasena_hash = generate_password_hash(contrasena)
     
     conn = get_db_connection()
     cur = conn.cursor()
     try:
         cur.execute('''
-            INSERT INTO usuarios (usuario, contrasena, nombre_completo, rol)
-            VALUES (%s, %s, %s, %s)
-        ''', (usuario, contrasena_hash, nombre_completo, rol))
+            INSERT INTO usuarios (usuario, contrasena, nombre_completo, rol, activo)
+            VALUES (%s, %s, %s, %s, %s)
+        ''', (usuario, contrasena_hash, nombre_completo, rol, True))
         conn.commit()
         flash('Usuario creado exitosamente')
     except psycopg2.IntegrityError:
@@ -558,23 +524,16 @@ def exportar_excel():
             visita['compromisos'] or ""
         ])
 
-    # Ajustar ancho de columnas y aplicar wrap_text
     for col in ws.columns:
         max_length = 0
         column = col[0].column_letter
         for cell in col:
-            try:
-                if cell.value is not None:
-                    max_length = max(max_length, len(str(cell.value)))
-            except:
-                pass
-        # Aumentar el ancho mínimo y aplicar wrap_text
-        adjusted_width = max(max_length + 2, 15)  # Ancho mínimo de 15
+            if cell.value is not None:
+                max_length = max(max_length, len(str(cell.value)))
+        adjusted_width = max(max_length + 2, 15)
         ws.column_dimensions[column].width = min(adjusted_width, 50)
-        
-        # Aplicar wrap_text a todas las celdas de la columna
         for cell in col:
-            if cell.row > 1:  # No aplicar a encabezados
+            if cell.row > 1:
                 cell.alignment = Alignment(wrap_text=True)
 
     filename = "visitas_pedagogicas.xlsx"
@@ -582,7 +541,7 @@ def exportar_excel():
     wb.save(filepath)
 
     return send_file(filepath, as_attachment=True)
-    
+
 @app.route('/editar_usuario/<int:usuario_id>')
 def editar_usuario(usuario_id):
     if 'rol' not in session or session['rol'] != 'admin':
@@ -637,14 +596,12 @@ def eliminar_usuario(usuario_id):
         flash('Acceso no autorizado')
         return redirect(url_for('dashboard'))
     
-    # Evita que el admin se elimine a sí mismo
     if usuario_id == session['user_id']:
         flash('No puedes eliminarte a ti mismo')
         return redirect(url_for('gestion_usuarios'))
     
     conn = get_db_connection()
     cur = conn.cursor()
-    # En lugar de DELETE, desactivamos
     cur.execute("UPDATE usuarios SET activo = FALSE WHERE id = %s", (usuario_id,))
     conn.commit()
     conn.close()
@@ -659,7 +616,6 @@ def generar_informe_mensual(mes):
     conn = get_db_connection()
     cur = conn.cursor()
     
-    # Obtener visitas
     if mes == 'todos':
         cur.execute("""
             SELECT v.*, u.nombre_completo as especialista_nombre
@@ -678,41 +634,27 @@ def generar_informe_mensual(mes):
     
     visitas = cur.fetchall()
     
-    # Estadísticas
     total = len(visitas)
+    niveles = {}
+    tipos = {}
+    
     if total > 0:
         if mes == 'todos':
             cur.execute("SELECT nivel, COUNT(*) FROM visitas GROUP BY nivel")
             niveles = {row['nivel']: row['count'] for row in cur.fetchall()}
-            
             cur.execute("SELECT tipo_visita, COUNT(*) FROM visitas GROUP BY tipo_visita")
             tipos = {row['tipo_visita']: row['count'] for row in cur.fetchall()}
         else:
-            cur.execute("""
-                SELECT nivel, COUNT(*) 
-                FROM visitas 
-                WHERE fecha LIKE %s 
-                GROUP BY nivel
-            """, (f"{mes}%",))
+            cur.execute("SELECT nivel, COUNT(*) FROM visitas WHERE fecha LIKE %s GROUP BY nivel", (f"{mes}%",))
             niveles = {row['nivel']: row['count'] for row in cur.fetchall()}
-            
-            cur.execute("""
-                SELECT tipo_visita, COUNT(*) 
-                FROM visitas 
-                WHERE fecha LIKE %s 
-                GROUP BY tipo_visita
-            """, (f"{mes}%",))
+            cur.execute("SELECT tipo_visita, COUNT(*) FROM visitas WHERE fecha LIKE %s GROUP BY tipo_visita", (f"{mes}%",))
             tipos = {row['tipo_visita']: row['count'] for row in cur.fetchall()}
-    else:
-        niveles = {}
-        tipos = {}
     
     conn.close()
     
     return generar_pdf_informe_mensual(visitas, mes, total, niveles, tipos)
 
 def generar_pdf_informe_mensual(visitas, mes, total, niveles, tipos):
-    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
     from reportlab.lib import colors
     from reportlab.lib.units import inch
     
@@ -723,7 +665,6 @@ def generar_pdf_informe_mensual(visitas, mes, total, niveles, tipos):
     styles = getSampleStyleSheet()
     story = []
     
-    # Logo
     logo_path = os.path.join(os.path.dirname(__file__), 'templates_ppt', 'logo.png')
     if os.path.exists(logo_path):
         im = Image(logo_path, 1.5*inch, 0.8*inch)
@@ -731,16 +672,14 @@ def generar_pdf_informe_mensual(visitas, mes, total, niveles, tipos):
         story.append(im)
         story.append(Spacer(1, 24))
     
-    # Título institucional
     story.append(Paragraph("<b>UNIDAD DE GESTIÓN EDUCATIVA LOCAL LAURICOCHA</b>", styles['Title']))
     story.append(Paragraph("<b>ÁREA DE GESTIÓN PEDAGÓGICA</b>", styles['Heading2']))
     story.append(Spacer(1, 12))
     
-    # Título del informe
-    story.append(Paragraph(f"<b>INFORME MENSUAL DE MONITOREO PEDAGÓGICO - {mes}</b>", styles['Heading1']))
+    mes_str = "TODOS LOS MESES" if mes == 'todos' else mes
+    story.append(Paragraph(f"<b>INFORME MENSUAL DE MONITOREO PEDAGÓGICO - {mes_str}</b>", styles['Heading1']))
     story.append(Spacer(1, 12))
     
-    # Resumen estadístico
     story.append(Paragraph("<b>RESUMEN ESTADÍSTICO</b>", styles['Heading3']))
     story.append(Paragraph(f"Total de visitas realizadas: {total}", styles['Normal']))
     
@@ -754,35 +693,32 @@ def generar_pdf_informe_mensual(visitas, mes, total, niveles, tipos):
     
     story.append(Spacer(1, 18))
     
-    # Tabla detallada
     if visitas:
         story.append(Paragraph("<b>DETALLE DE VISITAS</b>", styles['Heading3']))
         data = [["N° Informe", "Fecha", "Institución", "Nivel", "Tipo", "Especialista"]]
-    for v in visitas:
-        # Usar Paragraph para cada celda → permite wrap text y ajuste de fuente
-        data.append([
-            Paragraph(v['numero_informe'], styles['Normal']),
-            Paragraph(v['fecha'], styles['Normal']),
-            Paragraph(v['institucion'], styles['Normal']),
-            Paragraph(v['nivel'], styles['Normal']),
-            Paragraph(v['tipo_visita'], styles['Normal']),
-            Paragraph(v['especialista_nombre'], styles['Normal'])
-        ])
-    
-    table = Table(data, colWidths=[60, 80, 100, 50, 70, 80])
-    table.setStyle(TableStyle([
-        ('BACKGROUND', (0,0), (-1,0), colors.gray),
-        ('TEXTCOLOR', (0,0), (-1,0), colors.whitesmoke),
-        ('ALIGN', (0,0), (-1,-1), 'CENTER'),
-        ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0,0), (-1,0), 8),
-        ('BOTTOMPADDING', (0,0), (-1,0), 12),
-        ('GRID', (0,0), (-1,-1), 1, colors.black),
-        ('VALIGN', (0,0), (-1,-1), 'TOP'),
-        ('WORDWRAP', (0,0), (-1,-1), True)
-    ]))
-    story.append(table)
+        for v in visitas:
+            data.append([
+                Paragraph(v['numero_informe'], styles['Normal']),
+                Paragraph(v['fecha'], styles['Normal']),
+                Paragraph(v['institucion'], styles['Normal']),
+                Paragraph(v['nivel'], styles['Normal']),
+                Paragraph(v['tipo_visita'], styles['Normal']),
+                Paragraph(v['especialista_nombre'], styles['Normal'])
+            ])
         
+        col_widths = [60, 80, 100, 50, 70, 80]
+        table = Table(data, colWidths=col_widths)
+        table.setStyle(TableStyle([
+            ('BACKGROUND', (0,0), (-1,0), colors.gray),
+            ('TEXTCOLOR', (0,0), (-1,0), colors.whitesmoke),
+            ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+            ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0,0), (-1,0), 8),
+            ('BOTTOMPADDING', (0,0), (-1,0), 12),
+            ('GRID', (0,0), (-1,-1), 1, colors.black),
+            ('VALIGN', (0,0), (-1,-1), 'TOP'),
+        ]))
+        story.append(table)
     
     story.append(Spacer(1, 24))
     story.append(Paragraph("<b>OBSERVACIONES ESTRUCTURADAS COMPLETAS</b>", styles['Heading3']))
@@ -790,23 +726,15 @@ def generar_pdf_informe_mensual(visitas, mes, total, niveles, tipos):
     for v in visitas:
         story.append(Spacer(1, 12))
         story.append(Paragraph(f"<b>{v['numero_informe']} - {v['institucion']}</b>", styles['Heading4']))
-        
-        # Fortalezas
         story.append(Paragraph("<b>✅ Fortalezas:</b>", styles['Normal']))
         story.append(Paragraph(v['fortalezas'] or "No registradas.", styles['Normal']))
         story.append(Spacer(1, 6))
-        
-        # Áreas de mejora
         story.append(Paragraph("<b>⚠️ Áreas de mejora:</b>", styles['Normal']))
         story.append(Paragraph(v['mejoras'] or "No registradas.", styles['Normal']))
         story.append(Spacer(1, 6))
-        
-        # Recomendaciones
         story.append(Paragraph("<b>💡 Recomendaciones:</b>", styles['Normal']))
         story.append(Paragraph(v['recomendaciones'] or "No registradas.", styles['Normal']))
         story.append(Spacer(1, 6))
-        
-        # Compromisos
         story.append(Paragraph("<b>📝 Compromisos del docente:</b>", styles['Normal']))
         story.append(Paragraph(v['compromisos'] or "No registrados.", styles['Normal']))
     
@@ -820,8 +748,9 @@ def generar_pdf_informe_mensual(visitas, mes, total, niveles, tipos):
 
 @app.route('/logout')
 def logout():
-    session.clear()  # Elimina toda la sesión
+    session.clear()
     return redirect(url_for('login'))
+
 @app.route('/actualizar_visitas')
 def actualizar_visitas():
     if session.get('rol') != 'admin':
@@ -829,16 +758,32 @@ def actualizar_visitas():
     conn = get_db_connection()
     cur = conn.cursor()
     try:
-        cur.execute("ALTER TABLE visitas ADD COLUMN fortalezas TEXT")
-        cur.execute("ALTER TABLE visitas ADD COLUMN mejoras TEXT")
-        cur.execute("ALTER TABLE visitas ADD COLUMN recomendaciones TEXT")
-        cur.execute("ALTER TABLE visitas ADD COLUMN compromisos TEXT")
+        # Verificar si ya existen las columnas
+        cur.execute("SELECT column_name FROM information_schema.columns WHERE table_name = 'visitas'")
+        cols = [row['column_name'] for row in cur.fetchall()]
+        cambios = []
+        if 'fortalezas' not in cols:
+            cur.execute("ALTER TABLE visitas ADD COLUMN fortalezas TEXT")
+            cambios.append('fortalezas')
+        if 'mejoras' not in cols:
+            cur.execute("ALTER TABLE visitas ADD COLUMN mejoras TEXT")
+            cambios.append('mejoras')
+        if 'recomendaciones' not in cols:
+            cur.execute("ALTER TABLE visitas ADD COLUMN recomendaciones TEXT")
+            cambios.append('recomendaciones')
+        if 'compromisos' not in cols:
+            cur.execute("ALTER TABLE visitas ADD COLUMN compromisos TEXT")
+            cambios.append('compromisos')
         conn.commit()
-        return "✅ Columnas de observaciones estructuradas añadidas"
+        if cambios:
+            return f"✅ Columnas añadidas: {', '.join(cambios)}"
+        else:
+            return "✅ Todas las columnas ya existen"
     except Exception as e:
-        return f"⚠️ Ya existen o error: {str(e)}"
+        return f"⚠️ Error: {str(e)}"
     finally:
         conn.close()
+
 @app.route('/verificar_columnas')
 def verificar_columnas():
     if session.get('rol') != 'admin':
@@ -856,7 +801,6 @@ def recursos():
         if 'user_id' not in session:
             return redirect(url_for('login'))
         
-        # Verificar que la carpeta 'recursos' exista
         recursos_path = os.path.join(os.path.dirname(__file__), 'recursos')
         if not os.path.exists(recursos_path):
             return "<h2>Error: Carpeta 'recursos' no encontrada en el servidor.</h2>", 500
@@ -889,16 +833,42 @@ def descargar_recurso(categoria, archivo):
     if 'user_id' not in session:
         return redirect(url_for('login'))
     
-    # Asegurar que la categoría y el archivo sean válidos
-    categorias_validas = ['rúbricas', 'guias', 'planes', 'normas']
+    categorias_validas = ['rúbricas', 'guías', 'planes', 'normas']
     if categoria not in categorias_validas:
         abort(404)
     
     try:
-        return send_file(f"recursos/{categoria}/{archivo}", as_attachment=True)
+        return send_file(os.path.join('recursos', categoria, archivo), as_attachment=True)
     except FileNotFoundError:
         abort(404)
 
+@app.route('/migrar_activo_2025')
+def migrar_activo_2025():
+    # Protección: solo si hay sesión y es admin
+    if 'user_id' not in session or session.get('rol') != 'admin':
+        return "Acceso denegado. Inicia sesión como admin.", 403
+    
+    conn = get_db_connection()
+    cur = conn.cursor()
+    try:
+        # Añadir columna 'activo' si no existe
+        cur.execute("ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS activo BOOLEAN DEFAULT TRUE")
+        # Asegurar que todos los usuarios existentes estén activos
+        cur.execute("UPDATE usuarios SET activo = TRUE WHERE activo IS NULL OR activo != TRUE")
+        conn.commit()
+        return """
+        <h2>✅ ¡Migración completada!</h2>
+        <p>Columna 'activo' añadida y todos los usuarios activados.</p>
+        <p><b>Recomendación:</b> Elimina esta ruta del código y haz un nuevo push a Git.</p>
+        """
+    except Exception as e:
+        conn.rollback()
+        return f"<h2>❌ Error:</h2><pre>{str(e)}</pre>"
+    finally:
+        conn.close()
+        
+# --- Inicialización ---
 if __name__ == '__main__':
+    init_db()  # Asegura que la DB esté lista al iniciar
     port = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=port)
