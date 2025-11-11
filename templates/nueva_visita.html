@@ -1,66 +1,82 @@
 {% extends "base.html" %}
 {% block content %}
-<h3>Registrar Nueva Visita</h3>
-<form method="POST">
-    <div class="row">
-        <div class="col-md-6">
-            <div class="mb-3">
-                <label class="form-label">Fecha</label>
-                <input type="date" class="form-control" name="fecha" required>
-            </div>
+<div class="container mt-4">
+    <h3 class="mb-4">📝 Registrar Nueva Visita</h3>
+
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <form method="POST">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label">📅 Fecha</label>
+                            <input type="date" class="form-control" name="fecha" required>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label">🏫 Tipo de Visita</label>
+                            <select class="form-select" name="tipo" required>
+                                <option value="">Seleccionar</option>
+                                <option value="Monitoreo pedagógico">Monitoreo pedagógico</option>
+                                <option value="Comisión de servicio">Comisión de servicio</option>
+                                <option value="Asesoría">Asesoría</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">🏫 Institución Educativa</label>
+                    <input type="text" class="form-control" name="institucion" placeholder="Ej: I.E. San Juan Bautista" required>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">📚 Nivel</label>
+                    <select class="form-select" name="nivel" required>
+                        <option value="">Seleccionar</option>
+                        <option value="Inicial">Inicial</option>
+                        <option value="Primaria">Primaria</option>
+                        <option value="Secundaria">Secundaria</option>
+                        <option value="CEBA">CEBA</option>
+                    </select>
+                </div>
+
+                <!-- ✅ FORTALEZAS -->
+                <div class="mb-3">
+                    <label class="form-label">✅ Fortalezas</label>
+                    <textarea class="form-control" name="fortalezas" rows="2" placeholder="Ej: Dominio del tema, participación activa de estudiantes" required></textarea>
+                </div>
+
+                <!-- ⚠️ ÁREAS DE MEJORA -->
+                <div class="mb-3">
+                    <label class="form-label">⚠️ Áreas de mejora</label>
+                    <textarea class="form-control" name="mejoras" rows="2" placeholder="Ej: Gestión del tiempo, uso de materiales" required></textarea>
+                </div>
+
+                <!-- 💡 RECOMENDACIONES -->
+                <div class="mb-3">
+                    <label class="form-label">💡 Recomendaciones</label>
+                    <textarea class="form-control" name="recomendaciones" rows="2" placeholder="Ej: Elaborar rúbricas de evaluación, usar cronómetro" required></textarea>
+                </div>
+
+                <!-- 📝 COMPROMISOS DEL DOCENTE -->
+                <div class="mb-3">
+                    <label class="form-label">📝 Compromisos del docente</label>
+                    <textarea class="form-control" name="compromisos" rows="2" placeholder="Ej: Preparar materiales para la próxima sesión"></textarea>
+                </div>
+
+                <div class="d-flex justify-content-between">
+                    <a href="{{ url_for('visitas.dashboard') }}" class="btn btn-secondary">
+                        ⬅️ Cancelar
+                    </a>
+                    <button type="submit" class="btn btn-primary">
+                        💾 Registrar Visita
+                    </button>
+                </div>
+            </form>
         </div>
-        <div class="col-md-6">
-            <div class="mb-3">
-                <label class="form-label">Tipo de Visita</label>
-                <select class="form-select" name="tipo" required>
-                    <option value="">Seleccionar</option>
-                    <option value="Monitoreo pedagógico">Monitoreo pedagógico</option>
-                    <option value="Comisión de servicio">Comisión de servicio</option>
-                    <option value="Asesoría">Asesoría</option>
-                </select>
-            </div>
-        </div>
     </div>
-    <div class="mb-3">
-        <label class="form-label">Institución Educativa</label>
-        <input type="text" class="form-control" name="institucion" placeholder="Ej: I.E. San Juan Bautista" required>
-    </div>
-    <div class="mb-3">
-        <label class="form-label">Nivel</label>
-        <select class="form-select" name="nivel" required>
-            <option value="">Seleccionar</option>
-            <option value="Inicial">Inicial</option>
-            <option value="Primaria">Primaria</option>
-            <option value="Secundaria">Secundaria</option>
-            <option value="CEBA">CEBA</option>
-        </select>
-    </div>
-
-    <!-- ✅ FORTALEZAS -->
-    <div class="mb-3">
-        <label class="form-label">✅ Fortalezas</label>
-        <textarea class="form-control" name="fortalezas" rows="2" placeholder="Ej: Dominio del tema, participación activa de estudiantes" required></textarea>
-    </div>
-
-    <!-- ⚠️ ÁREAS DE MEJORA -->
-    <div class="mb-3">
-        <label class="form-label">⚠️ Áreas de mejora</label>
-        <textarea class="form-control" name="mejoras" rows="2" placeholder="Ej: Gestión del tiempo, uso de materiales" required></textarea>
-    </div>
-
-    <!-- 💡 RECOMENDACIONES -->
-    <div class="mb-3">
-        <label class="form-label">💡 Recomendaciones</label>
-        <textarea class="form-control" name="recomendaciones" rows="2" placeholder="Ej: Elaborar rúbricas de evaluación, usar cronómetro" required></textarea>
-    </div>
-
-    <!-- 📝 COMPROMISOS DEL DOCENTE -->
-    <div class="mb-3">
-        <label class="form-label">📝 Compromisos del docente</label>
-        <textarea class="form-control" name="compromisos" rows="2" placeholder="Ej: Preparar materiales para la próxima sesión"></textarea>
-    </div>
-
-    <button type="submit" class="btn btn-primary">Registrar Visita</button>
-    <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">Cancelar</a>
-</form>
+</div>
 {% endblock %}
+

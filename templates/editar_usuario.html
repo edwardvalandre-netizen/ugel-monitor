@@ -1,28 +1,47 @@
 {% extends "base.html" %}
 {% block content %}
-<h3>✏️ Editar Usuario: {{ usuario.usuario }}</h3>
-<form method="POST" action="{{ url_for('actualizar_usuario', usuario_id=usuario.id) }}">
-    <div class="mb-3">
-        <label class="form-label">Nombre Completo</label>
-        <input type="text" name="nombre_completo" class="form-control" value="{{ usuario.nombre_completo }}" required>
+<div class="container mt-4">
+    <h3 class="mb-4">✏️ Editar Usuario: <span class="text-primary">{{ usuario.usuario }}</span></h3>
+
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('usuarios.actualizar_usuario', usuario_id=usuario.id) }}">
+                <div class="mb-3">
+                    <label class="form-label">👤 Nombre Completo</label>
+                    <input type="text" name="nombre_completo" class="form-control" 
+                           value="{{ usuario.nombre_completo }}" required>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">🎓 Rol</label>
+                    <select name="rol" class="form-select" required>
+                        <option value="especialista" {% if usuario.rol == 'especialista' %}selected{% endif %}>Especialista</option>
+                        <option value="jefe" {% if usuario.rol == 'jefe' %}selected{% endif %}>Jefe de Área</option>
+                        <option value="admin" {% if usuario.rol == 'admin' %}selected{% endif %}>Administrador</option>
+                    </select>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">🔑 Contraseña (dejar vacío para no cambiar)</label>
+                    <input type="password" name="contrasena" class="form-control" placeholder="Nueva contraseña opcional">
+                </div>
+
+                <div class="mb-3 form-check">
+                    <input type="checkbox" class="form-check-input" name="activo" id="activo" 
+                           {% if usuario.activo %}checked{% endif %}>
+                    <label class="form-check-label" for="activo">✅ Usuario activo</label>
+                </div>
+
+                <div class="d-flex justify-content-between mt-4">
+                    <a href="{{ url_for('usuarios.gestion_usuarios') }}" class="btn btn-secondary">
+                        ⬅️ Cancelar
+                    </a>
+                    <button type="submit" class="btn btn-primary">
+                        💾 Actualizar Usuario
+                    </button>
+                </div>
+            </form>
+        </div>
     </div>
-    <div class="mb-3">
-        <label class="form-label">Rol</label>
-        <select name="rol" class="form-select" required>
-            <option value="especialista" {% if usuario.rol == 'especialista' %}selected{% endif %}>Especialista</option>
-            <option value="jefe" {% if usuario.rol == 'jefe' %}selected{% endif %}>Jefe de Área</option>
-            <option value="admin" {% if usuario.rol == 'admin' %}selected{% endif %}>Administrador</option>
-        </select>
-    </div>
-    <div class="mb-3">
-        <label class="form-label">Contraseña (dejar vacío para no cambiar)</label>
-        <input type="password" name="contrasena" class="form-control">
-    </div>
-    <div class="mb-3 form-check">
-        <input type="checkbox" class="form-check-input" name="activo" id="activo" {% if usuario.activo %}checked{% endif %}>
-        <label class="form-check-label" for="activo">Usuario activo</label>
-    </div>
-    <button type="submit" class="btn btn-primary">Actualizar Usuario</button>
-    <a href="{{ url_for('gestion_usuarios') }}" class="btn btn-secondary">Cancelar</a>
-</form>
+</div>
 {% endblock %}

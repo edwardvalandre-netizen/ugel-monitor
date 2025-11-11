@@ -3,7 +3,7 @@
 
 {% if session.get('rol') == 'admin' %}
 <div class="d-flex justify-content-end mb-3">
-    <a href="{{ url_for('gestion_usuarios') }}" class="btn btn-outline-secondary">
+    <a href="{{ url_for('usuarios.gestion_usuarios') }}" class="btn btn-outline-secondary">
         👥 Gestionar Usuarios
     </a>
 </div>
@@ -11,7 +11,9 @@
 
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h3>📊 Panel de Gestión Pedagógica</h3>
-    <a href="{{ url_for('nueva_visita') }}" class="btn btn-success">+ Nueva Visita</a>
+    <a href="{{ url_for('visitas.nueva_visita') }}" class="btn btn-success">
+        <i class="fa-solid fa-plus"></i> Nueva Visita
+    </a>
 </div>
 
 <!-- Filtro por mes + Botón dinámico -->
@@ -36,7 +38,7 @@
 <div class="row mb-4">
     <div class="col-md-3">
         <div class="card text-white bg-primary">
-            <div class="card-body">
+            <div class="card-body text-center">
                 <h5>Total Visitas</h5>
                 <h3>{{ total_visitas }}</h3>
             </div>
@@ -44,18 +46,18 @@
     </div>
     <div class="col-md-3">
         <div class="card text-white bg-success">
-            <div class="card-body">
+            <div class="card-body text-center">
                 <h5>Este Mes</h5>
                 <h3>{{ visitas_mes }}</h3>
             </div>
         </div>
     </div>
     <div class="col-md-3">
-        <div class="card text-white bg-warning">
-            <div class="card-body">
+        <div class="card text-dark bg-warning">
+            <div class="card-body text-center">
                 <h5>Meta Mensual</h5>
                 <h3>30</h3>
-                <small class="text-dark">({{ '%.0f' | format(porcentaje_meta) }}% alcanzado)</small>
+                <small>({{ '%.0f' | format(porcentaje_meta) }}% alcanzado)</small>
             </div>
         </div>
     </div>
@@ -82,16 +84,16 @@
 </div>
 
 <div class="d-flex justify-content-end mb-3">
-    <a href="{{ url_for('exportar_excel') }}" class="btn btn-outline-primary">
-        📥 Exportar a Excel
+    <a href="{{ url_for('visitas.exportar_excel') }}" class="btn btn-outline-primary">
+        <i class="fa-solid fa-file-excel"></i> Exportar a Excel
     </a>
 </div>
 
 <!-- Tabla de visitas registradas -->
 <h4>📋 Visitas Registradas</h4>
 <div class="table-responsive">
-    <table id="tablaVisitas" class="table table-striped">
-        <thead>
+    <table id="tablaVisitas" class="table table-striped table-hover align-middle">
+        <thead class="table-dark">
             <tr>
                 <th>N° Informe</th>
                 <th>Fecha</th>
@@ -109,13 +111,17 @@
                         <td>{{ v['numero_informe'] }}</td>
                         <td>{{ v['fecha'] }}</td>
                         <td>{{ v['institucion'] }}</td>
-                        <td>{{ v['nivel'] }}</td>
+                        <td><span class="badge bg-info">{{ v['nivel'] }}</span></td>
                         <td>{{ v['usuario_id'] }}</td>
-                        <td>{{ v['tipo_visita'] }}</td>
+                        <td><span class="badge bg-secondary">{{ v['tipo_visita'] }}</span></td>
                         <td>
                             <div class="btn-group btn-group-sm" role="group">
-                                <a href="{{ url_for('generar_ppt', visita_id=v['id']) }}" class="btn btn-success">PPT</a>
-                                <a href="{{ url_for('generar_pdf', visita_id=v['id']) }}" class="btn btn-danger">PDF</a>
+                                <a href="{{ url_for('visitas.generar_ppt', visita_id=v['id']) }}" class="btn btn-success">
+                                    <i class="fa-solid fa-file-powerpoint"></i> PPT
+                                </a>
+                                <a href="{{ url_for('visitas.generar_pdf', visita_id=v['id']) }}" class="btn btn-danger">
+                                    <i class="fa-solid fa-file-pdf"></i> PDF
+                                </a>
                             </div>
                         </td>
                     </tr>
@@ -137,6 +143,11 @@
     const tipos = {{ tipos | tojson }};
     const mesFiltro = "{{ mes_filtro }}";
 
+    // Detectar modo oscuro
+    const isDark = document.body.classList.contains('dark-mode');
+    const textColor = isDark ? '#e0e0e0' : '#000';
+    const gridColor = isDark ? '#444' : '#ccc';
+
     // Gráfico por nivel
     new Chart(document.getElementById('graficoNivel'), {
         type: 'bar',
@@ -148,7 +159,14 @@
                 backgroundColor: '#007bff'
             }]
         },
-        options: { responsive: true, plugins: { legend: { display: false } } }
+        options: {
+            responsive: true,
+            plugins: { legend: { display: false } },
+            scales: {
+                x: { ticks: { color: textColor }, grid: { color: gridColor } },
+                y: { ticks: { color: textColor }, grid: { color: gridColor } }
+            }
+        }
     });
 
     // Gráfico por tipo
@@ -161,7 +179,12 @@
                 backgroundColor: ['#ff6384', '#36a2eb', '#ffce56', '#4bc0c0']
             }]
         },
-        options: { responsive: true }
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { labels: { color: textColor } }
+            }
+        }
     });
 
     // Filtro por mes + actualización de botón

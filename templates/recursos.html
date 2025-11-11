@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% block content %}
+<style>
+    .resource-card {
+        transition: transform 0.2s, box-shadow 0.2s;
+        height: 100%;
+    }
+    .resource-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
+    .icon-category {
+        font-size: 2rem;
+        margin-bottom: 12px;
+        color: #003366;
+    }
+    .category-title {
+        border-left: 4px solid #003366;
+        padding-left: 12px;
+        margin-bottom: 24px;
+        color: #003366;
+        font-weight: bold;
+    }
+    .alert-institutional {
+        background: linear-gradient(135deg, #e6f0fa 0%, #f0f8ff 100%);
+        border-left: 4px solid #003366;
+    }
+
+    /* Modo oscuro */
+    .dark-mode .resource-card {
+        background-color: #1e1e1e;
+        color: #e0e0e0;
+    }
+    .dark-mode .icon-category {
+        color: #6ea8fe;
+    }
+    .dark-mode .category-title {
+        color: #6ea8fe;
+        border-left-color: #6ea8fe;
+    }
+    .dark-mode .alert-institutional {
+        background: #2a2a2a;
+        border-left: 4px solid #6ea8fe;
+        color: #e0e0e0;
+    }
+</style>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h3>📚 Repositorio de Recursos Pedagógicos</h3>
+    <div class="text-muted small">
+        <i class="fas fa-check-circle me-1"></i> Recursos oficiales - UGEL Lauricocha
+    </div>
+</div>
+
+<div class="alert alert-institutional mb-4">
+    <p class="mb-0">
+        <strong>🎯 Misión del AGP:</strong> 
+        "Acompañar, monitorear y asesorar a las instituciones educativas para garantizar una educación de calidad con equidad."
+    </p>
+</div>
+
+{% for categoria, items in recursos.items() %}
+<div class="mb-5">
+    <h4 class="category-title">
+        {% if categoria == 'rúbricas' %}Rúbricas de Evaluación{% elif categoria == 'guías' %}Guías de Monitoreo{% elif categoria == 'planes' %}Modelos de Planes de Mejora{% else %}Normas y Directivas{% endif %}
+    </h4>
+    <div class="row g-3">
+        {% for item in items %}
+        <div class="col-md-6 col-lg-4">
+            <div class="card resource-card border-0 shadow-sm h-100">
+                <div class="card-body d-flex flex-column">
+                    <div class="icon-category text-center">
+                        {% if categoria == 'rúbricas' %}
+                        <i class="fas fa-clipboard-list"></i>
+                        {% elif categoria == 'guías' %}
+                        <i class="fas fa-book-open"></i>
+                        {% elif categoria == 'planes' %}
+                        <i class="fas fa-project-diagram"></i>
+                        {% else %}
+                        <i class="fas fa-file-contract"></i>
+                        {% endif %}
+                    </div>
+                    <h6 class="card-title fw-bold text-center">{{ item.nombre }}</h6>
+                    <p class="text-muted small text-center">{{ item.descripcion }}</p>
+                    <div class="mt-auto">
+                        <a href="{{ url_for('recursos.descargar_recurso', categoria=categoria, archivo=item.archivo) }}" 
+                           class="btn btn-sm btn-primary w-100">
+                            <i class="fas fa-download me-1"></i> Descargar
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endfor %}
+
+<div class="alert alert-info mt-4">
+    <i class="fas fa-lightbulb me-2"></i>
+    <strong>¿Necesitas un recurso específico?</strong> 
+    Contacta al Área de Gestión Pedagógica para solicitar nuevos materiales o actualizaciones.
+</div>
+{% endblock %}
