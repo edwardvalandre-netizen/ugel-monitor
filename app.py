@@ -2,7 +2,7 @@ from flask import Flask
 from routes.usuarios import usuarios_bp
 from routes.visitas import visitas_bp
 from routes.auth import auth_bp
-from recursos.recursos import recursos_bp
+from routes.recursos import recursos_bp
 from utils.db import init_db
 
 def create_app():
