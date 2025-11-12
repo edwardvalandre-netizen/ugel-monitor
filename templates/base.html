@@ -49,7 +49,7 @@
     <div class="header d-flex align-items-center w-100 px-4 py-2">
     <!-- Logo clickeable -->
     {% if session.get('user_id') %}
-        <a href="{{ url_for('dashboard') }}">
+        <a href="{{ url_for('visitas.dashboard') }}">
             <img src="{{ url_for('static', filename='img/logo.png') }}" class="logo" alt="Logo UGEL">
         </a>
     {% else %}
@@ -70,7 +70,7 @@
             👤 {{ session.get('nombre') }}
         </button>
         <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userMenu">
-            <li><a class="dropdown-item" href="{{ url_for('dashboard') }}">Inicio</a></li>
+            <li><a class="dropdown-item" href="{{ url_for('visitas.dashboard') }}">Inicio</a></li>
             <li><a class="dropdown-item" href="{{ url_for('recursos') }}">📚 Recursos Pedagógicos</a></li>
             <li><hr class="dropdown-divider"></li>
             <li><a class="dropdown-item text-danger" href="{{ url_for('logout') }}">Cerrar sesión</a></li>
