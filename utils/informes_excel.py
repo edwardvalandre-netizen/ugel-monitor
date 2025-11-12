@@ -1,4 +1,3 @@
-# utils/informes_excel.py
 import io
 import pandas as pd
 
@@ -20,4 +19,3 @@ def generar_informe_excel(visitas, resumen, mes):
 
 def exportar_excel_visitas(visitas, resumen, mes):
     return generar_informe_excel(visitas, resumen, mes)
-
